@@ -1,0 +1,183 @@
+http:
+  routers:
+    # === PUBLIC ROUTES ===
+
+    # Traefik Dashboard (VPN only)
+    traefik-dashboard:
+      rule: "Host(`traefik.example.com`)"
+      service: "api@internal"
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - vpn-whitelist
+        - secure-headers
+
+    # Portainer (VPN only)
+    portainer:
+      rule: "Host(`portainer.example.com`)"
+      service: portainer-svc
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - vpn-whitelist
+        - secure-headers
+
+    # Grafana (VPN only)
+    grafana:
+      rule: "Host(`grafana.example.com`)"
+      service: grafana-svc
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - vpn-whitelist
+        - secure-headers
+
+    # Prometheus (VPN only)
+    prometheus:
+      rule: "Host(`prometheus.example.com`)"
+      service: prometheus-svc
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - vpn-whitelist
+        - secure-headers
+
+    # MinIO Console (VPN only)
+    minio-console:
+      rule: "Host(`minio.example.com`)"
+      service: minio-console-svc
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - vpn-whitelist
+        - secure-headers
+
+    # MinIO API (VPN only)
+    minio-api:
+      rule: "Host(`s3.example.com`)"
+      service: minio-api-svc
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - vpn-whitelist
+
+    # Docker Registry (VPN only)
+    registry:
+      rule: "Host(`registry.example.com`)"
+      service: registry-svc
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - vpn-whitelist
+
+    # Plane (VPN only)
+    plane:
+      rule: "Host(`plane.example.com`)"
+      service: plane-svc
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - vpn-whitelist
+        - secure-headers
+
+    # OpenPanel (VPN only)
+    openpanel:
+      rule: "Host(`openpanel.example.com`)"
+      service: openpanel-svc
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - vpn-whitelist
+        - secure-headers
+
+    # OpenStatus Dashboard (VPN only)
+    openstatus-dash:
+      rule: "Host(`status-admin.example.com`)"
+      service: openstatus-dash-svc
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - vpn-whitelist
+        - secure-headers
+
+    # OpenStatus Public Page
+    openstatus-page:
+      rule: "Host(`status.example.com`)"
+      service: openstatus-page-svc
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - secure-headers
+
+  services:
+    portainer-svc:
+      loadBalancer:
+        servers:
+          - url: "http://infra-portainer_portainer:9000"
+
+    grafana-svc:
+      loadBalancer:
+        servers:
+          - url: "http://mon-grafana_grafana:3000"
+
+    prometheus-svc:
+      loadBalancer:
+        servers:
+          - url: "http://mon-prometheus_prometheus:9090"
+
+    minio-console-svc:
+      loadBalancer:
+        servers:
+          - url: "http://data-minio_minio:9001"
+
+    minio-api-svc:
+      loadBalancer:
+        servers:
+          - url: "http://data-minio_minio:9000"
+
+    registry-svc:
+      loadBalancer:
+        servers:
+          - url: "http://infra-registry_registry:5000"
+
+    plane-svc:
+      loadBalancer:
+        servers:
+          - url: "http://tool-plane_web:3000"
+
+    openpanel-svc:
+      loadBalancer:
+        servers:
+          - url: "http://tool-openpanel_openpanel:3000"
+
+    openstatus-dash-svc:
+      loadBalancer:
+        servers:
+          - url: "http://tool-openstatus_web:3000"
+
+    openstatus-page-svc:
+      loadBalancer:
+        servers:
+          - url: "http://tool-openstatus_web:3000"

@@ -1,0 +1,139 @@
+cluster:
+  name: "my-swarm"
+
+hetzner:
+  # hcloud CLI token — can also be set via HCLOUD_TOKEN env var
+  token: ""
+  ssh_key_name: "swarm-cluster-key"
+  ssh_key_path: "~/.ssh/id_rsa"
+  image: "ubuntu-24.04"
+
+network:
+  name: "swarm-network"
+  zone: "eu-central"
+  subnet: "10.0.0.0/24"
+
+nodes:
+  - name: "swarm-infra"
+    type: "cx22"
+    location: "fsn1"
+    private_ip: "10.0.0.1"
+    role: "manager"
+    labels:
+      infra: "true"
+      role: "infra"
+
+  - name: "swarm-data"
+    type: "cx32"
+    location: "fsn1"
+    private_ip: "10.0.0.2"
+    role: "worker"
+    labels:
+      data: "true"
+      role: "data"
+
+  - name: "swarm-apps"
+    type: "cx32"
+    location: "fsn1"
+    private_ip: "10.0.0.3"
+    role: "worker"
+    labels:
+      app: "true"
+      role: "app"
+
+  - name: "swarm-tools"
+    type: "cx32"
+    location: "fsn1"
+    private_ip: "10.0.0.4"
+    role: "worker"
+    labels:
+      tools: "true"
+      role: "tools"
+
+domains:
+  base: "example.com"
+  acme_email: "admin@example.com"
+
+  # Public domains
+  public:
+    app1: "app1.example.com"
+    app2: "app2.example.com"
+    app3: "app3.example.com"
+    api: "api.example.com"
+
+  # VPN-only domains
+  vpn:
+    portainer: "portainer.example.com"
+    grafana: "grafana.example.com"
+    minio_console: "minio.example.com"
+    minio_api: "s3.example.com"
+    plane: "plane.example.com"
+    openpanel: "openpanel.example.com"
+    traefik: "traefik.example.com"
+    prometheus: "prometheus.example.com"
+    registry: "registry.example.com"
+    openstatus_dash: "status-admin.example.com"
+    openstatus_page: "status.example.com"
+
+  # Internal DNS names (CoreDNS)
+  internal:
+    pg: "pg.internal"
+    redis: "redis.internal"
+    minio: "minio.internal"
+    s3: "s3.internal"
+    portainer: "portainer.internal"
+    traefik: "traefik.internal"
+    dns: "dns.internal"
+    grafana: "grafana.internal"
+    prometheus: "prometheus.internal"
+    loki: "loki.internal"
+    plane: "plane.internal"
+    openpanel: "openpanel.internal"
+    backend: "backend.internal"
+    app: "app.internal"
+    openstatus: "openstatus.internal"
+
+services:
+  postgresql:
+    user: "admin"
+    db: "main"
+    memory_limit: "2G"
+    memory_reservation: "1G"
+
+  redis:
+    maxmemory: "512mb"
+    memory_limit: "1G"
+    memory_reservation: "512M"
+    # volatile-lru: TTL-based keys (like OTP) are preserved
+    eviction_policy: "volatile-lru"
+
+  minio:
+    root_user: "minioadmin"
+    memory_limit: "2G"
+    memory_reservation: "1G"
+
+  registry:
+    user: "admin"
+
+  loki:
+    retention: "168h"
+
+netbird:
+  domain: "netbird.example.com"
+  subnet: "100.64.0.0/10"
+  setup_key: ""
+  management_url: ""
+
+slack:
+  webhook_url: ""
+  channel: "#alerts"
+
+backup:
+  retention_days: 14
+  local_dir: "/opt/backups"
+  schedule: "0 3 * * *"
+  storage_box:
+    user: ""
+    host: ""
+    port: 23
+    path: "/backups/swarm"

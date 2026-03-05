@@ -1,0 +1,43 @@
+version: "3.8"
+
+services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    ports:
+      - "6379:6379"
+    secrets:
+      - redis_password
+    volumes:
+      - /opt/data/redis:/data
+      - /opt/configs/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      - backend
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.data == true
+      restart_policy:
+        condition: on-failure
+        max_attempts: 10
+        window: 60s
+      resources:
+        limits:
+          memory: ${REDIS_MEMORY_LIMIT:-1G}
+        reservations:
+          memory: ${REDIS_MEMORY_RESERVATION:-512M}
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+secrets:
+  redis_password:
+    external: true
+
+networks:
+  backend:
+    external: true

@@ -1,0 +1,26 @@
+# Binary
+swarmforge
+swarmforge.exe
+
+# Credentials
+.credentials
+credentials.yml
+
+# Config (keep example)
+swarmforge.yml
+
+# Go
+vendor/
+*.test
+*.out
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

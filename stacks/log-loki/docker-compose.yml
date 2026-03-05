@@ -1,0 +1,37 @@
+version: "3.8"
+
+services:
+  loki:
+    image: grafana/loki:3.3.0
+    command: ["-config.file=/etc/loki/loki-config.yml"]
+    ports:
+      - "3100:3100"
+    volumes:
+      - /opt/configs/loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - /opt/data/loki:/loki
+    networks:
+      - backend
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.tools == true
+      restart_policy:
+        condition: on-failure
+        max_attempts: 10
+        window: 60s
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+networks:
+  backend:
+    external: true
