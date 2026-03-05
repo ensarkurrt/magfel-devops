@@ -14,6 +14,7 @@ network:
   subnet: "10.0.0.0/24"
 
 nodes:
+  # Node-1 — Infra (CX22: 2 vCPU, 4GB RAM, 40GB) ~€3.49/mo
   - name: "swarm-infra"
     type: "cx22"
     location: "fsn1"
@@ -23,8 +24,9 @@ nodes:
       infra: "true"
       role: "infra"
 
+  # Node-2 — Data (CPX31: 4 vCPU, 8GB RAM, 160GB) ~€10.99/mo
   - name: "swarm-data"
-    type: "cx32"
+    type: "cpx31"
     location: "fsn1"
     private_ip: "10.0.0.2"
     role: "worker"
@@ -32,6 +34,7 @@ nodes:
       data: "true"
       role: "data"
 
+  # Node-3 — Apps (CX32: 4 vCPU, 8GB RAM, 80GB) ~€5.49/mo
   - name: "swarm-apps"
     type: "cx32"
     location: "fsn1"
@@ -41,6 +44,7 @@ nodes:
       app: "true"
       role: "app"
 
+  # Node-4 — Tools (CX32: 4 vCPU, 8GB RAM, 80GB) ~€5.49/mo
   - name: "swarm-tools"
     type: "cx32"
     location: "fsn1"
@@ -49,6 +53,16 @@ nodes:
     labels:
       tools: "true"
       role: "tools"
+
+  # Node-5 — CI/Build (CX32: 4 vCPU, 8GB RAM, 80GB) ~€5.49/mo
+  - name: "swarm-ci"
+    type: "cx32"
+    location: "fsn1"
+    private_ip: "10.0.0.5"
+    role: "worker"
+    labels:
+      ci: "true"
+      role: "ci"
 
 domains:
   base: "example.com"
@@ -60,6 +74,8 @@ domains:
     app2: "app2.example.com"
     app3: "app3.example.com"
     api: "api.example.com"
+    umami: "umami.example.com"
+    openstatus_page: "status.example.com"
 
   # VPN-only domains
   vpn:
@@ -67,13 +83,13 @@ domains:
     grafana: "grafana.example.com"
     minio_console: "minio.example.com"
     minio_api: "s3.example.com"
-    plane: "plane.example.com"
-    openpanel: "openpanel.example.com"
     traefik: "traefik.example.com"
     prometheus: "prometheus.example.com"
     registry: "registry.example.com"
+    gowa: "gowa.example.com"
+    twenty: "twenty.example.com"
+    jenkins: "jenkins.example.com"
     openstatus_dash: "status-admin.example.com"
-    openstatus_page: "status.example.com"
 
   # Internal DNS names (CoreDNS)
   internal:
@@ -87,10 +103,12 @@ domains:
     grafana: "grafana.internal"
     prometheus: "prometheus.internal"
     loki: "loki.internal"
-    plane: "plane.internal"
-    openpanel: "openpanel.internal"
     backend: "backend.internal"
     app: "app.internal"
+    gowa: "gowa.internal"
+    umami: "umami.internal"
+    twenty: "twenty.internal"
+    jenkins: "jenkins.internal"
     openstatus: "openstatus.internal"
 
 services:

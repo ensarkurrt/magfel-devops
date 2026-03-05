@@ -99,7 +99,7 @@ func generateUFWRules(node config.NodeConfig, cfg *config.Config) []string {
 			"ufw allow 80/tcp comment 'HTTP'",
 			"ufw allow 443/tcp comment 'HTTPS'",
 		)
-		toolPorts := []string{"3000", "3001", "3002", "3003", "3004", "3005", "9090", "3100"}
+		toolPorts := []string{"3000", "3020", "3030", "9090", "3100"}
 		for _, port := range toolPorts {
 			if vpnNet != "" {
 				rules = append(rules,
@@ -108,6 +108,23 @@ func generateUFWRules(node config.NodeConfig, cfg *config.Config) []string {
 			}
 			rules = append(rules,
 				fmt.Sprintf("ufw allow from %s to any port %s proto tcp comment 'Monitoring private'", privateNet, port),
+			)
+		}
+
+	case "ci":
+		rules = append(rules,
+			"ufw allow 80/tcp comment 'HTTP'",
+			"ufw allow 443/tcp comment 'HTTPS'",
+		)
+		ciPorts := []string{"8080", "50000"}
+		for _, port := range ciPorts {
+			if vpnNet != "" {
+				rules = append(rules,
+					fmt.Sprintf("ufw allow from %s to any port %s proto tcp comment 'Jenkins VPN'", vpnNet, port),
+				)
+			}
+			rules = append(rules,
+				fmt.Sprintf("ufw allow from %s to any port %s proto tcp comment 'Jenkins private'", privateNet, port),
 			)
 		}
 	}

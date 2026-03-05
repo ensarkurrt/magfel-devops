@@ -37,7 +37,7 @@ internal/
   deploy/      → Stack deployment, health checks, deployment order
   dns/         → CoreDNS hosts file generation, DNS record management
   backup/      → Backup orchestration, offsite sync, cron setup
-stacks/        → 16 Docker Compose stack files (one directory per stack)
+stacks/        → 18 Docker Compose stack files (one directory per stack)
 traefik/       → Traefik dynamic configuration (routes + middlewares)
 scripts/       → Helper shell scripts
 templates/     → Template files (Grafana datasources, etc.)
