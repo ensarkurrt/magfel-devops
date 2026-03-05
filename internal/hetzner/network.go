@@ -14,8 +14,7 @@ func (c *Client) CreateNetwork(name, zone, subnet string) error {
 		return err
 	}
 
-	_, err = c.Run("network", "add-subnet",
-		"--network", name,
+	_, err = c.Run("network", "add-subnet", name,
 		"--type", "cloud",
 		"--network-zone", zone,
 		"--ip-range", subnet,
