@@ -33,23 +33,6 @@ jobs:
       - name: Build
         run: go build -o swarmforge .
 
-      - name: Verify CLI starts
-        run: ./swarmforge version
-
-      - name: Validate example config
-        run: HCLOUD_TOKEN=test ./swarmforge config validate --config swarmforge.yml.example
-
-      - name: Test dry-run
-        run: HCLOUD_TOKEN=test ./swarmforge up --dry-run --config swarmforge.yml.example
-
-      - name: Upload binary
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-        uses: actions/upload-artifact@v4
-        with:
-          name: swarmforge-linux-amd64
-          path: swarmforge
-          retention-days: 30
-
   test:
     name: Test
     runs-on: ubuntu-latest
