@@ -1,8 +1,11 @@
-name: Preview Environment
+name: Preview Environment (DISABLED)
 
+# Preview workflows are disabled — not used in this project.
+# To re-enable, change the trigger back to:
+#   pull_request:
+#     types: [opened, synchronize, reopened]
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  workflow_dispatch:
 
 permissions:
   contents: read

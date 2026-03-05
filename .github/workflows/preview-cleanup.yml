@@ -1,8 +1,11 @@
-name: Preview Cleanup
+name: Preview Cleanup (DISABLED)
 
+# Preview workflows are disabled — not used in this project.
+# To re-enable, change the trigger back to:
+#   pull_request:
+#     types: [closed]
 on:
-  pull_request:
-    types: [closed]
+  workflow_dispatch:
 
 permissions:
   contents: read
