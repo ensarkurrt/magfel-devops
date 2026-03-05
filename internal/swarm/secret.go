@@ -9,15 +9,30 @@ import (
 	sshpkg "github.com/ensarkurrt/swarmforge/internal/ssh"
 )
 
+// shellEscape escapes a string for safe use in single-quoted shell arguments.
+func shellEscape(s string) string {
+	return strings.ReplaceAll(s, "'", "'\\''")
+}
+
 func CreateSecret(client *sshpkg.Client, name, value string) error {
 	// Check if exists
-	_, err := client.Run(fmt.Sprintf("docker secret inspect %s", name))
+	_, err := client.Run(fmt.Sprintf("docker secret inspect '%s'", shellEscape(name)))
 	if err == nil {
 		return nil // already exists
 	}
 
-	_, err = client.Run(fmt.Sprintf("echo -n '%s' | docker secret create %s -", value, name))
+	// Write secret value to a temp file to avoid shell injection via echo.
+	// The value is transferred over the SSH channel (SCP), not interpolated into a shell command.
+	tmpPath := fmt.Sprintf("/tmp/secret-%s", name)
+	if writeErr := client.WriteContent(tmpPath, value); writeErr != nil {
+		return fmt.Errorf("writing secret temp file: %w", writeErr)
+	}
+
+	_, err = client.Run(fmt.Sprintf("docker secret create '%s' '%s' && rm -f '%s'",
+		shellEscape(name), shellEscape(tmpPath), shellEscape(tmpPath)))
 	if err != nil {
+		// Clean up temp file on failure
+		client.Run(fmt.Sprintf("rm -f '%s'", shellEscape(tmpPath)))
 		return fmt.Errorf("creating secret %s: %w", name, err)
 	}
 	return nil

@@ -2,11 +2,17 @@ package security
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/ensarkurrt/swarmforge/internal/config"
 	sshpkg "github.com/ensarkurrt/swarmforge/internal/ssh"
 	"github.com/ensarkurrt/swarmforge/internal/ui"
 )
+
+// shellEscape escapes a string for safe use in single-quoted shell arguments.
+func shellEscape(s string) string {
+	return strings.ReplaceAll(s, "'", "'\\''")
+}
 
 func SetupNode(client *sshpkg.Client, node config.NodeConfig, cfg *config.Config) error {
 	steps := []struct {
@@ -84,7 +90,8 @@ func InstallNetbird(client *sshpkg.Client, setupKey, managementURL string) error
 		return nil
 	}
 	script := fmt.Sprintf(`curl -fsSL https://pkgs.netbird.io/install.sh | sh
-netbird up --setup-key %s --management-url %s`, setupKey, managementURL)
+netbird up --setup-key '%s' --management-url '%s'`,
+		shellEscape(setupKey), shellEscape(managementURL))
 	_, err := client.Run(script)
 	return err
 }
