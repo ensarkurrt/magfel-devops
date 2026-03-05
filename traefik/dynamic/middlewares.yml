@@ -1,0 +1,35 @@
+http:
+  middlewares:
+    # VPN Whitelist — Only allow access from NetBird subnet
+    vpn-whitelist:
+      ipAllowList:
+        sourceRange:
+          - "100.64.0.0/10"
+          - "10.0.0.0/24"
+          - "127.0.0.1/32"
+
+    # Secure Headers
+    secure-headers:
+      headers:
+        browserXssFilter: true
+        contentTypeNosniff: true
+        frameDeny: true
+        stsIncludeSubdomains: true
+        stsPreload: true
+        stsSeconds: 31536000
+        customFrameOptionsValue: "SAMEORIGIN"
+        referrerPolicy: "strict-origin-when-cross-origin"
+        permissionsPolicy: "camera=(), microphone=(), geolocation=()"
+
+    # Rate Limiting
+    rate-limit:
+      rateLimit:
+        average: 100
+        burst: 200
+        period: 1s
+
+    # Compress
+    compress:
+      compress:
+        excludedContentTypes:
+          - "text/event-stream"

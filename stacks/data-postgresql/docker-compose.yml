@@ -1,0 +1,45 @@
+version: "3.8"
+
+services:
+  postgresql:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${PG_USER:-admin}
+      POSTGRES_DB: ${PG_DB:-main}
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_password
+    secrets:
+      - pg_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - /opt/data/postgresql:/var/lib/postgresql/data
+    networks:
+      - backend
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.data == true
+      restart_policy:
+        condition: on-failure
+        max_attempts: 10
+        window: 60s
+      resources:
+        limits:
+          memory: ${PG_MEMORY_LIMIT:-2G}
+        reservations:
+          memory: ${PG_MEMORY_RESERVATION:-1G}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER:-admin}"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+secrets:
+  pg_password:
+    external: true
+
+networks:
+  backend:
+    external: true

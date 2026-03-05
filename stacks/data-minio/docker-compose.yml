@@ -1,0 +1,47 @@
+version: "3.8"
+
+services:
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_root_password
+      MINIO_PROMETHEUS_AUTH_TYPE: "public"
+    secrets:
+      - minio_root_password
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - /opt/data/minio:/data
+    networks:
+      - backend
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.data == true
+      restart_policy:
+        condition: on-failure
+        max_attempts: 10
+        window: 60s
+      resources:
+        limits:
+          memory: ${MINIO_MEMORY_LIMIT:-2G}
+        reservations:
+          memory: ${MINIO_MEMORY_RESERVATION:-1G}
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+secrets:
+  minio_root_password:
+    external: true
+
+networks:
+  backend:
+    external: true
