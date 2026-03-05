@@ -2,7 +2,7 @@
 
 ## What This Project Does
 
-SwarmForge is a Go CLI tool that provisions and manages Docker Swarm clusters on Hetzner Cloud. It automates the entire lifecycle: server creation, Docker Swarm setup, 16-stack deployment, networking, security hardening, monitoring, backup, and DNS management.
+SwarmForge is a Go CLI tool that provisions and manages Docker Swarm clusters on Hetzner Cloud. It automates the entire lifecycle: server creation, Docker Swarm setup, stack deployment, networking, security hardening, monitoring, backup, DNS management, and CI/CD runner orchestration.
 
 ## Architecture Decisions
 
@@ -59,6 +59,7 @@ templates/     → Template files (Grafana datasources, etc.)
 | `swarmforge secret list\|set\|remove` | Docker secrets |
 | `swarmforge ssh <node>` | SSH into a node |
 | `swarmforge logs <service>` | Service log viewing |
+| `swarmforge runner deploy\|scale\|status\|logs\|remove` | GitHub Actions runner management |
 | `swarmforge config validate\|show` | Config management |
 
 ## Global Flags
@@ -66,6 +67,38 @@ templates/     → Template files (Grafana datasources, etc.)
 - `--config <path>` — Config file (default: swarmforge.yml)
 - `--verbose` / `-v` — Detailed output
 - `--dry-run` — Preview changes without executing
+
+## CI/CD — GitHub Actions Runners
+
+Self-hosted GitHub Actions runner'lar Docker Swarm üzerinde `ci-runner` stack'i olarak çalışır. `swarmforge runner` komutuyla yönetilir.
+
+### Runner Workflow'ları
+
+| Workflow | Dosya | Durum | Açıklama |
+|----------|-------|-------|----------|
+| CI | `ci.yml` | Aktif | Build, test, lint, compose validation (ubuntu-latest) |
+| Release | `deploy.yml` | Aktif | Multi-platform build + GitHub Release (tag push) |
+| Preview Deploy | `preview-deploy.yml` | Devre dışı | PR preview ortamı (kullanılmıyor) |
+| Preview Cleanup | `preview-cleanup.yml` | Devre dışı | PR kapanınca preview temizliği (kullanılmıyor) |
+
+> Preview workflow'ları `workflow_dispatch` trigger'ına alınmıştır, otomatik tetiklenmez.
+
+### Runner Komutları
+
+```bash
+# Deploy — image build + push + Swarm stack oluştur
+swarmforge runner deploy --repo https://github.com/org/repo --pat ghp_xxx --replicas 3
+
+# Scale — paralel job kapasitesini ayarla
+swarmforge runner scale 5
+
+# Durum ve loglar
+swarmforge runner status
+swarmforge runner logs
+
+# Tamamen kaldır
+swarmforge runner remove
+```
 
 ## How to Add a New Stack
 

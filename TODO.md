@@ -1,5 +1,14 @@
 # SwarmForge — TODO
 
+## Tamamlananlar
+
+- [x] `swarmforge runner` CLI komutu eklendi (`deploy`, `scale`, `status`, `logs`, `remove`)
+- [x] Preview workflow'ları devre dışı bırakıldı (`preview-deploy.yml`, `preview-cleanup.yml`)
+  - Trigger: `workflow_dispatch` (manuel) — otomatik tetiklenmez
+  - Bu projede preview ortamı kullanılmıyor
+
+---
+
 ## Auto-Scale Runners (Cron Job)
 
 GitHub Actions self-hosted runner'lar şu an manuel scale ediliyor (`swarmforge runner scale <N>`).
