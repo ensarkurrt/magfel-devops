@@ -20,7 +20,6 @@ var DeploymentOrder = []string{
 	"tool-umami",
 	"tool-openstatus",
 	"tool-twenty",
-	"ci-jenkins",
 }
 
 // StackDir maps stack name to its compose file directory

@@ -54,16 +54,6 @@ nodes:
       tools: "true"
       role: "tools"
 
-  # Node-5 — CI/Build (CX32: 4 vCPU, 8GB RAM, 80GB) ~€5.49/mo
-  - name: "swarm-ci"
-    type: "cx32"
-    location: "fsn1"
-    private_ip: "10.0.0.5"
-    role: "worker"
-    labels:
-      ci: "true"
-      role: "ci"
-
 domains:
   base: "example.com"
   acme_email: "admin@example.com"
@@ -88,7 +78,6 @@ domains:
     registry: "registry.example.com"
     gowa: "gowa.example.com"
     twenty: "twenty.example.com"
-    jenkins: "jenkins.example.com"
     openstatus_dash: "status-admin.example.com"
 
   # Internal DNS names (CoreDNS)
@@ -108,7 +97,6 @@ domains:
     gowa: "gowa.internal"
     umami: "umami.internal"
     twenty: "twenty.internal"
-    jenkins: "jenkins.internal"
     openstatus: "openstatus.internal"
 
 services:

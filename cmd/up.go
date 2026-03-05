@@ -333,12 +333,6 @@ func prepareAndCopyConfigs(clients map[string]*sshpkg.Client, cfg *cfgpkg.Config
 		_, _ = clients[appNode.Name].Run("mkdir -p /opt/data/gowa")
 	}
 
-	// CI node data dirs
-	ciNode := cfg.GetNodeByLabel("role", "ci")
-	if ciNode != nil {
-		_, _ = clients[ciNode.Name].Run("mkdir -p /opt/data/jenkins")
-	}
-
 	return nil
 }
 

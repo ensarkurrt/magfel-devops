@@ -111,22 +111,6 @@ func generateUFWRules(node config.NodeConfig, cfg *config.Config) []string {
 			)
 		}
 
-	case "ci":
-		rules = append(rules,
-			"ufw allow 80/tcp comment 'HTTP'",
-			"ufw allow 443/tcp comment 'HTTPS'",
-		)
-		ciPorts := []string{"8080", "50000"}
-		for _, port := range ciPorts {
-			if vpnNet != "" {
-				rules = append(rules,
-					fmt.Sprintf("ufw allow from %s to any port %s proto tcp comment 'Jenkins VPN'", vpnNet, port),
-				)
-			}
-			rules = append(rules,
-				fmt.Sprintf("ufw allow from %s to any port %s proto tcp comment 'Jenkins private'", privateNet, port),
-			)
-		}
 	}
 
 	return rules

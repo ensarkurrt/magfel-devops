@@ -220,7 +220,6 @@ func vpnServiceDescription(key string) string {
 		"registry":        "Docker Registry",
 		"gowa":            "GOWA WhatsApp Gateway",
 		"twenty":          "Twenty CRM",
-		"jenkins":         "Jenkins CI",
 		"openstatus_dash": "OpenStatus Dashboard",
 	}
 	if desc, ok := descriptions[key]; ok {

@@ -35,7 +35,6 @@ func GenerateHostsFile(cfg *config.Config) string {
 		"backend":    "app",
 		"app":        "app",
 		"gowa":       "app",
-		"jenkins":    "ci",
 	}
 
 	for name, hostname := range cfg.Domains.Internal {

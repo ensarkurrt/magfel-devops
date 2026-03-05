@@ -108,18 +108,6 @@ http:
         - vpn-whitelist
         - secure-headers
 
-    # Jenkins CI
-    jenkins:
-      rule: "Host(`jenkins.example.com`)"
-      service: jenkins-svc
-      entryPoints:
-        - websecure
-      tls:
-        certResolver: letsencrypt
-      middlewares:
-        - vpn-whitelist
-        - secure-headers
-
     # OpenStatus Dashboard
     openstatus-dash:
       rule: "Host(`status-admin.example.com`)"
@@ -201,11 +189,6 @@ http:
       loadBalancer:
         servers:
           - url: "http://tool-twenty_twenty:3000"
-
-    jenkins-svc:
-      loadBalancer:
-        servers:
-          - url: "http://ci-jenkins_jenkins:8080"
 
     openstatus-dash-svc:
       loadBalancer:
