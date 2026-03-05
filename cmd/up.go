@@ -387,7 +387,7 @@ func createAdditionalDatabases(client *sshpkg.Client, secrets map[string]string)
 		docker exec $(docker ps -q -f name=data-postgresql_postgresql) \
 		psql -U admin -c "CREATE DATABASE %s; CREATE USER %s WITH PASSWORD '%s'; GRANT ALL PRIVILEGES ON DATABASE %s TO %s;"`,
 			db.name, db.name, db.user, swarm.GeneratePassword(24), db.name, db.user)
-		client.Run(cmd)
+		_, _ = client.Run(cmd)
 	}
 }
 
