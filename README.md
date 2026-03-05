@@ -28,6 +28,8 @@ make build
 
 **Tools**: Plane.so (project management), OpenPanel (analytics), OpenStatus (uptime monitoring)
 
+**CI/CD**: GitHub Actions self-hosted runners (scalable Swarm service)
+
 ## Architecture
 
 - 4 nodes: infra (manager), data, apps, tools (workers)
@@ -50,6 +52,7 @@ swarmforge dns list|add|remove|regenerate
 swarmforge backup run [--offsite]|list|restore
 swarmforge firewall status|apply
 swarmforge secret list|set|remove
+swarmforge runner deploy|scale|status|logs|remove
 swarmforge ssh <node-name>
 swarmforge logs <service-name>
 swarmforge config validate|show

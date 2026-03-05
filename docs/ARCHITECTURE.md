@@ -10,7 +10,7 @@ SwarmForge provisions a 4-node Docker Swarm cluster on Hetzner Cloud with a comp
 |------|------|----------|
 | swarm-infra | Manager | Traefik, CoreDNS, Portainer, Registry, NetBird |
 | swarm-data | Worker | PostgreSQL, Redis, MinIO |
-| swarm-apps | Worker | Application workloads |
+| swarm-apps | Worker | Application workloads, CI runners |
 | swarm-tools | Worker | Prometheus, Grafana, Loki, Alertmanager, Plane, OpenPanel, OpenStatus |
 
 ## Network Architecture
@@ -65,6 +65,9 @@ mon-alertmanager ──── (receives from prometheus)
 tool-plane ────────── (uses postgresql DB + redis)
 tool-openpanel ────── (uses postgresql DB + redis)
 tool-openstatus ───── (uses own libSQL database)
+
+ci-runner ────────── (GitHub Actions self-hosted runners)
+                      (scalable replicas, registers with GitHub)
 ```
 
 ## Data Flow
@@ -95,10 +98,21 @@ MinIO metrics          →
 Traefik metrics        →
 ```
 
+### CI/CD Flow
+```
+GitHub push/PR → GitHub Actions → Queue job
+                                    ↓
+                 ci-runner replicas (Swarm service) ← swarmforge runner scale
+                                    ↓
+                 Build → Push to Registry → Deploy via swarmforge stack
+```
+
 ## Security Model
 
 - **Public exposure**: Only ports 80 and 443 (Traefik) are open to the internet
 - **VPN-only services**: Portainer, Grafana, Prometheus, MinIO Console, Registry, Plane, OpenPanel
+- **CI runners**: Self-hosted GitHub Actions runners, `ci-runner` stack, private network only
+- **Preview workflows**: Devre dışı — bu projede preview ortamları kullanılmıyor
 - **Private network only**: Database ports (5432, 6379, 9000), Swarm ports (2377, 7946, 4789)
 - **All passwords**: Managed as Docker secrets, auto-generated if not provided
 - **SSH**: Key-only, max 3 attempts, fail2ban protection
