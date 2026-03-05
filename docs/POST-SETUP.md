@@ -4,21 +4,52 @@ After running `swarmforge up`, complete these steps:
 
 ## 1. DNS Configuration
 
-Point your domain DNS records to the infra node's public IP:
+All services are accessed through Traefik, which runs on the **infra node**. Every domain must point to the infra node's public IP.
+
+Generate the exact DNS record list for your config:
+```bash
+swarmforge dns export
+```
+
+### Option A: Wildcard DNS (simplest)
 
 ```
 A  *.example.com     → <infra-public-ip>
 A  example.com       → <infra-public-ip>
 ```
 
-Or for specific subdomains:
-```
-A  portainer.example.com    → <infra-public-ip>
-A  grafana.example.com      → <infra-public-ip>
-A  minio.example.com        → <infra-public-ip>
-A  s3.example.com           → <infra-public-ip>
-...
-```
+This covers everything in one record. Recommended if you control the domain.
+
+### Option B: Individual Records (15 total)
+
+**Public domains (4)** — accessible from the internet:
+
+| Record | Domain | Service |
+|--------|--------|---------|
+| A | `app1.example.com` | Application 1 |
+| A | `app2.example.com` | Application 2 |
+| A | `app3.example.com` | Application 3 |
+| A | `api.example.com` | API endpoint |
+
+**VPN-only domains (11)** — accessible only via NetBird VPN, but still need public DNS for TLS:
+
+| Record | Domain | Service |
+|--------|--------|---------|
+| A | `portainer.example.com` | Portainer CE (container management) |
+| A | `grafana.example.com` | Grafana (dashboards) |
+| A | `minio.example.com` | MinIO Console (object storage UI) |
+| A | `s3.example.com` | MinIO S3 API endpoint |
+| A | `plane.example.com` | Plane.so (project management) |
+| A | `openpanel.example.com` | OpenPanel (analytics) |
+| A | `traefik.example.com` | Traefik Dashboard |
+| A | `prometheus.example.com` | Prometheus (metrics) |
+| A | `registry.example.com` | Docker Registry UI |
+| A | `status-admin.example.com` | OpenStatus Dashboard |
+| A | `status.example.com` | OpenStatus Public Page |
+
+> **Note:** VPN-only domains still need public DNS A records because Let's Encrypt
+> needs to reach Traefik for HTTP challenge validation. Access control is enforced
+> by Traefik's `vpn-whitelist` middleware, not by DNS.
 
 ## 2. NetBird VPN Setup
 
