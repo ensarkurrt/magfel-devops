@@ -2,12 +2,12 @@
 
 ## What This Project Does
 
-SwarmForge is a Go CLI tool that provisions and manages Docker Swarm clusters on Hetzner Cloud. It automates the entire lifecycle: server creation, Docker Swarm setup, 16-stack deployment, networking, security hardening, monitoring, backup, and DNS management.
+SwarmForge is a Go CLI tool that provisions and manages Docker Swarm clusters on Hetzner Cloud. It automates the entire lifecycle: server creation, Docker Swarm setup, 18-stack deployment, networking, security hardening, monitoring, backup, DNS management, and CI/CD runner orchestration.
 
 ## Architecture Decisions
 
 ### Why Traefik File Provider (not Compose Labels)
-All route definitions live in `traefik/dynamic/routes.yml` and middleware definitions in `traefik/dynamic/middlewares.yml`. This centralizes routing configuration, makes it auditable, and avoids scattering route definitions across 16 compose files. The file provider watches for changes and hot-reloads.
+All route definitions live in `traefik/dynamic/routes.yml` and middleware definitions in `traefik/dynamic/middlewares.yml`. This centralizes routing configuration, makes it auditable, and avoids scattering route definitions across 18 compose files. The file provider watches for changes and hot-reloads.
 
 ### Why Swarm DNS vs CoreDNS (dual DNS)
 - **Swarm built-in DNS**: Container-to-container communication within the `backend` overlay network. Service names resolve automatically (e.g., `data-postgresql_postgresql`).
@@ -23,6 +23,19 @@ Redis uses `volatile-lru` eviction policy because:
 ### Why hcloud CLI (not HTTP API)
 The `hcloud` CLI provides a clean, well-tested interface for Hetzner Cloud operations. It handles authentication, retries, and output formatting. The Go code wraps it as a subprocess and parses JSON output.
 
+## Node Specifications
+
+| Node | Type | vCPU | RAM | Disk | Fiyat | Rol |
+|------|------|------|-----|------|-------|-----|
+| swarm-infra | CX22 | 2 | 4 GB | 40 GB | ~€3.49/ay | Manager — Traefik, CoreDNS, Portainer, Registry, NetBird |
+| swarm-data | CPX31 | 4 | 8 GB | 160 GB | ~€10.99/ay | Worker — PostgreSQL, Redis, MinIO |
+| swarm-apps | CX32 | 4 | 8 GB | 80 GB | ~€5.49/ay | Worker — App workloads (app-gowa), CI runners |
+| swarm-tools | CX32 | 4 | 8 GB | 80 GB | ~€5.49/ay | Worker — Monitoring, analytics, CRM |
+
+**Toplam:** 14 vCPU, 28 GB RAM, 360 GB disk — ~€25.46/ay
+
+> **Not:** CPX31 (data node) AMD EPYC dedicated vCPU, 160 GB SSD — veritabanı I/O için en uygun seçenek. CX serisi Intel paylaşımlı vCPU, genel amaçlı workload'lar için yeterli.
+
 ## Project Structure
 
 ```
@@ -37,7 +50,7 @@ internal/
   deploy/      → Stack deployment, health checks, deployment order
   dns/         → CoreDNS hosts file generation, DNS record management
   backup/      → Backup orchestration, offsite sync, cron setup
-stacks/        → 16 Docker Compose stack files (one directory per stack)
+stacks/        → 18 Docker Compose stack files (one directory per stack)
 traefik/       → Traefik dynamic configuration (routes + middlewares)
 scripts/       → Helper shell scripts
 templates/     → Template files (Grafana datasources, etc.)
@@ -48,7 +61,7 @@ templates/     → Template files (Grafana datasources, etc.)
 | Command | Description |
 |---------|-------------|
 | `swarmforge init` | Interactive config wizard → creates swarmforge.yml |
-| `swarmforge up` | Full infrastructure provisioning (19 steps) |
+| `swarmforge up` | Full infrastructure provisioning (17 stacks + setup steps) |
 | `swarmforge down` | Destroy all infrastructure (with confirmation) |
 | `swarmforge status` | Detailed cluster status report |
 | `swarmforge node list\|add\|remove\|promote\|demote` | Swarm node management |
@@ -59,6 +72,7 @@ templates/     → Template files (Grafana datasources, etc.)
 | `swarmforge secret list\|set\|remove` | Docker secrets |
 | `swarmforge ssh <node>` | SSH into a node |
 | `swarmforge logs <service>` | Service log viewing |
+| `swarmforge runner deploy\|scale\|status\|logs\|remove` | GitHub Actions runner management |
 | `swarmforge config validate\|show` | Config management |
 
 ## Global Flags
@@ -66,6 +80,38 @@ templates/     → Template files (Grafana datasources, etc.)
 - `--config <path>` — Config file (default: swarmforge.yml)
 - `--verbose` / `-v` — Detailed output
 - `--dry-run` — Preview changes without executing
+
+## CI/CD — GitHub Actions Runners
+
+Self-hosted GitHub Actions runner'lar Docker Swarm üzerinde `ci-runner` stack'i olarak çalışır. `swarmforge runner` komutuyla yönetilir.
+
+### Runner Workflow'ları
+
+| Workflow | Dosya | Durum | Açıklama |
+|----------|-------|-------|----------|
+| CI | `ci.yml` | Aktif | Build, test, lint, compose validation (ubuntu-latest) |
+| Release | `deploy.yml` | Aktif | Multi-platform build + GitHub Release (tag push) |
+| Preview Deploy | `preview-deploy.yml` | Devre dışı | PR preview ortamı (kullanılmıyor) |
+| Preview Cleanup | `preview-cleanup.yml` | Devre dışı | PR kapanınca preview temizliği (kullanılmıyor) |
+
+> Preview workflow'ları `workflow_dispatch` trigger'ına alınmıştır, otomatik tetiklenmez.
+
+### Runner Komutları
+
+```bash
+# Deploy — image build + push + Swarm stack oluştur
+swarmforge runner deploy --repo https://github.com/org/repo --pat ghp_xxx --replicas 3
+
+# Scale — paralel job kapasitesini ayarla
+swarmforge runner scale 5
+
+# Durum ve loglar
+swarmforge runner status
+swarmforge runner logs
+
+# Tamamen kaldır
+swarmforge runner remove
+```
 
 ## How to Add a New Stack
 

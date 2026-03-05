@@ -2,16 +2,18 @@
 
 ## Overview
 
-SwarmForge provisions a 4-node Docker Swarm cluster on Hetzner Cloud with a complete service stack including reverse proxy, databases, monitoring, logging, and development tools.
+SwarmForge provisions a 4-node Docker Swarm cluster on Hetzner Cloud with a complete service stack including reverse proxy, databases, monitoring, logging, development tools, and CI/CD runners.
 
 ## Node Roles
 
-| Node | Role | Services |
-|------|------|----------|
-| swarm-infra | Manager | Traefik, CoreDNS, Portainer, Registry, NetBird |
-| swarm-data | Worker | PostgreSQL, Redis, MinIO |
-| swarm-apps | Worker | Application workloads |
-| swarm-tools | Worker | Prometheus, Grafana, Loki, Alertmanager, Plane, OpenPanel, OpenStatus |
+| Node | Role | Type | Specs | Price | Services |
+|------|------|------|-------|-------|----------|
+| swarm-infra | Manager | CX22 | 2 vCPU, 4 GB RAM, 40 GB disk | ~€3.49/ay | Traefik, CoreDNS, Portainer, Registry, NetBird |
+| swarm-data | Worker | CPX31 | 4 vCPU, 8 GB RAM, 160 GB disk | ~€10.99/ay | PostgreSQL, Redis, MinIO |
+| swarm-apps | Worker | CX32 | 4 vCPU, 8 GB RAM, 80 GB disk | ~€5.49/ay | Application workloads (app-gowa), CI runners |
+| swarm-tools | Worker | CX32 | 4 vCPU, 8 GB RAM, 80 GB disk | ~€5.49/ay | Prometheus, Grafana, Loki, Alertmanager, Umami, OpenStatus, Twenty |
+
+**Toplam:** 14 vCPU, 28 GB RAM, 360 GB disk — ~€25.46/ay
 
 ## Network Architecture
 
@@ -62,9 +64,14 @@ mon-prometheus ────── (scrapes all exporters)
 mon-grafana ───────── (datasources: prometheus + loki)
 mon-alertmanager ──── (receives from prometheus)
 
-tool-plane ────────── (uses postgresql DB + redis)
-tool-openpanel ────── (uses postgresql DB + redis)
-tool-openstatus ───── (uses own libSQL database)
+app-gowa ─────────── (application workload)
+
+tool-umami ───────── (web analytics)
+tool-openstatus ───── (uptime monitoring, own libSQL database)
+tool-twenty ──────── (CRM tool)
+
+ci-runner ────────── (GitHub Actions self-hosted runners)
+                      (scalable replicas, registers with GitHub)
 ```
 
 ## Data Flow
@@ -95,10 +102,21 @@ MinIO metrics          →
 Traefik metrics        →
 ```
 
+### CI/CD Flow
+```
+GitHub push/PR → GitHub Actions → Queue job
+                                    ↓
+                 ci-runner replicas (Swarm service) ← swarmforge runner scale
+                                    ↓
+                 Build → Push to Registry → Deploy via swarmforge stack
+```
+
 ## Security Model
 
 - **Public exposure**: Only ports 80 and 443 (Traefik) are open to the internet
-- **VPN-only services**: Portainer, Grafana, Prometheus, MinIO Console, Registry, Plane, OpenPanel
+- **VPN-only services**: Portainer, Grafana, Prometheus, MinIO Console, Registry, Umami, Twenty
+- **CI runners**: Self-hosted GitHub Actions runners, `ci-runner` stack, private network only
+- **Preview workflows**: Devre dışı — bu projede preview ortamları kullanılmıyor
 - **Private network only**: Database ports (5432, 6379, 9000), Swarm ports (2377, 7946, 4789)
 - **All passwords**: Managed as Docker secrets, auto-generated if not provided
 - **SSH**: Key-only, max 3 attempts, fail2ban protection

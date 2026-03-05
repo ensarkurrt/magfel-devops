@@ -1,0 +1,38 @@
+version: "3.8"
+
+services:
+  runner:
+    image: ${REGISTRY:-registry:5000}/github-runner:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      GITHUB_REPO_URL: "${GITHUB_REPO_URL}"
+      GITHUB_PAT: "${GITHUB_PAT}"
+      RUNNER_LABELS: "self-hosted,linux,swarm"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - backend
+    deploy:
+      replicas: ${RUNNER_REPLICAS:-2}
+      restart_policy:
+        condition: any
+        delay: 5s
+      placement:
+        constraints:
+          - node.labels.ci == true
+      resources:
+        limits:
+          memory: 2G
+          cpus: "2.0"
+        reservations:
+          memory: 512M
+          cpus: "0.5"
+      update_config:
+        parallelism: 1
+        delay: 10s
+
+networks:
+  backend:
+    external: true

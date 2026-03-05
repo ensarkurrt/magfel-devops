@@ -211,17 +211,16 @@ BIND zone file, and Hetzner DNS API formats.`,
 
 func vpnServiceDescription(key string) string {
 	descriptions := map[string]string{
-		"portainer":      "Portainer CE",
-		"grafana":        "Grafana",
-		"minio_console":  "MinIO Console",
-		"minio_api":      "MinIO S3 API",
-		"plane":          "Plane.so",
-		"openpanel":      "OpenPanel",
-		"traefik":        "Traefik Dashboard",
-		"prometheus":     "Prometheus",
-		"registry":       "Docker Registry",
+		"portainer":       "Portainer CE",
+		"grafana":         "Grafana",
+		"minio_console":   "MinIO Console",
+		"minio_api":       "MinIO S3 API",
+		"traefik":         "Traefik Dashboard",
+		"prometheus":      "Prometheus",
+		"registry":        "Docker Registry",
+		"gowa":            "GOWA WhatsApp Gateway",
+		"twenty":          "Twenty CRM",
 		"openstatus_dash": "OpenStatus Dashboard",
-		"openstatus_page": "OpenStatus Public Page",
 	}
 	if desc, ok := descriptions[key]; ok {
 		return desc

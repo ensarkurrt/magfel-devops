@@ -1,0 +1,115 @@
+name: Preview Environment (DISABLED)
+
+# Preview workflows are disabled — not used in this project.
+# To re-enable, change the trigger back to:
+#   pull_request:
+#     types: [opened, synchronize, reopened]
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  REGISTRY: registry:5000
+  PREVIEW_DOMAIN_SUFFIX: dev.example.com
+
+jobs:
+  deploy-preview:
+    name: Deploy Preview
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate branch slug
+        id: slug
+        run: |
+          BRANCH="${{ github.head_ref }}"
+          SLUG=$(echo "$BRANCH" | sed 's/[^a-zA-Z0-9]/-/g' | tr '[:upper:]' '[:lower:]' | sed 's/--*/-/g' | sed 's/^-//;s/-$//')
+          echo "slug=${SLUG}" >> "$GITHUB_OUTPUT"
+          echo "Branch slug: ${SLUG}"
+
+      - name: Build Docker image
+        run: |
+          SLUG="${{ steps.slug.outputs.slug }}"
+          docker build -t ${{ env.REGISTRY }}/backend:${SLUG} .
+          docker push ${{ env.REGISTRY }}/backend:${SLUG}
+
+      - name: Deploy to Swarm
+        run: |
+          SLUG="${{ steps.slug.outputs.slug }}"
+          SERVICE_NAME="preview-${SLUG}"
+          DOMAIN="${SLUG}.${{ env.PREVIEW_DOMAIN_SUFFIX }}"
+
+          # Remove existing service if it exists (redeploy)
+          docker service rm "${SERVICE_NAME}" 2>/dev/null || true
+
+          docker service create \
+            --name "${SERVICE_NAME}" \
+            --network backend \
+            --label "traefik.enable=true" \
+            --label "traefik.docker.network=backend" \
+            --label "traefik.http.routers.${SERVICE_NAME}.rule=Host(\`${DOMAIN}\`)" \
+            --label "traefik.http.routers.${SERVICE_NAME}.entrypoints=websecure" \
+            --label "traefik.http.routers.${SERVICE_NAME}.tls.certresolver=letsencrypt" \
+            --label "traefik.http.routers.${SERVICE_NAME}.middlewares=secure-headers@file" \
+            --label "traefik.http.services.${SERVICE_NAME}.loadbalancer.server.port=3000" \
+            --replicas 1 \
+            --with-registry-auth \
+            ${{ env.REGISTRY }}/backend:${SLUG}
+
+      - name: Wait for service to be ready
+        run: |
+          SLUG="${{ steps.slug.outputs.slug }}"
+          SERVICE_NAME="preview-${SLUG}"
+          echo "Waiting for ${SERVICE_NAME} to start..."
+          for i in $(seq 1 30); do
+            RUNNING=$(docker service ps "${SERVICE_NAME}" --filter "desired-state=running" --format "{{.CurrentState}}" 2>/dev/null | head -1)
+            if echo "${RUNNING}" | grep -q "Running"; then
+              echo "Service is running"
+              break
+            fi
+            sleep 5
+          done
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const slug = '${{ steps.slug.outputs.slug }}';
+            const domain = `${slug}.${{ env.PREVIEW_DOMAIN_SUFFIX }}`;
+            const url = `https://${domain}`;
+            const body = `## Preview Environment
+
+            | Detail | Value |
+            |--------|-------|
+            | **URL** | [${url}](${url}) |
+            | **Branch** | \`${{ github.head_ref }}\` |
+            | **Service** | \`preview-${slug}\` |
+            | **Commit** | \`${{ github.sha }}\` |
+
+            > This preview will be automatically removed when the PR is closed.`;
+
+            // Delete previous preview comments
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            for (const comment of comments.data) {
+              if (comment.body.includes('## Preview Environment')) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: comment.id,
+                });
+              }
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body,
+            });

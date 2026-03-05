@@ -39,8 +39,8 @@ This covers everything in one record. Recommended if you control the domain.
 | A | `grafana.example.com` | Grafana (dashboards) |
 | A | `minio.example.com` | MinIO Console (object storage UI) |
 | A | `s3.example.com` | MinIO S3 API endpoint |
-| A | `plane.example.com` | Plane.so (project management) |
-| A | `openpanel.example.com` | OpenPanel (analytics) |
+| A | `umami.example.com` | Umami (web analytics) |
+| A | `twenty.example.com` | Twenty (CRM) |
 | A | `traefik.example.com` | Traefik Dashboard |
 | A | `prometheus.example.com` | Prometheus (metrics) |
 | A | `registry.example.com` | Docker Registry UI |
@@ -113,14 +113,44 @@ docker tag myimage:latest registry.example.com/myimage:latest
 docker push registry.example.com/myimage:latest
 ```
 
-## 9. Deploy Your Application
+## 9. CI Runner Setup (GitHub Actions)
+
+Self-hosted runner'ları Swarm üzerine deploy edin:
+
+```bash
+# Runner stack'ini deploy et
+swarmforge runner deploy \
+  --repo https://github.com/your-org/your-repo \
+  --pat ghp_xxxxxxxxxxxx \
+  --replicas 2
+
+# Durumu kontrol et
+swarmforge runner status
+
+# İhtiyaca göre scale et
+swarmforge runner scale 4    # Yoğun dönemde
+swarmforge runner scale 1    # Sakin dönemde
+```
+
+Runner'lar otomatik olarak GitHub'a kayıt olur ve `self-hosted,linux,swarm` label'ları ile görünür.
+
+GitHub Actions workflow'larında kullanmak için:
+```yaml
+jobs:
+  build:
+    runs-on: self-hosted   # veya [self-hosted, linux, swarm]
+```
+
+> **Not:** Preview workflow'ları (`preview-deploy.yml`, `preview-cleanup.yml`) bu projede kullanılmadığından devre dışı bırakılmıştır.
+
+## 10. Deploy Your Application
 
 1. Add your app's docker-compose.yml to `stacks/`
 2. Add a route in `traefik/dynamic/routes.yml`
 3. Deploy: `swarmforge stack deploy <name>`
 4. Logs are automatically collected by Promtail
 
-## Credentials
+## 11. Credentials
 
 All generated credentials are saved in `.credentials` (chmod 600):
 - PostgreSQL password

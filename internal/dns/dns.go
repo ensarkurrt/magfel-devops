@@ -29,11 +29,12 @@ func GenerateHostsFile(cfg *config.Config) string {
 		"grafana":    "tools",
 		"prometheus": "tools",
 		"loki":       "tools",
-		"plane":      "tools",
-		"openpanel":  "tools",
+		"umami":      "tools",
+		"twenty":     "tools",
+		"openstatus": "tools",
 		"backend":    "app",
 		"app":        "app",
-		"openstatus": "tools",
+		"gowa":       "app",
 	}
 
 	for name, hostname := range cfg.Domains.Internal {

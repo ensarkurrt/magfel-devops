@@ -1,7 +1,7 @@
 package deploy
 
 // DeploymentOrder defines the order in which stacks should be deployed.
-// Dependencies flow top-to-bottom: DNS first, then data, then infra, then monitoring, then tools.
+// Dependencies flow top-to-bottom: DNS first, then data, then infra, then monitoring, then apps/tools.
 var DeploymentOrder = []string{
 	"infra-dns",
 	"data-postgresql",
@@ -16,9 +16,10 @@ var DeploymentOrder = []string{
 	"mon-prometheus",
 	"mon-grafana",
 	"mon-alertmanager",
-	"tool-plane",
-	"tool-openpanel",
+	"app-gowa",
+	"tool-umami",
 	"tool-openstatus",
+	"tool-twenty",
 }
 
 // StackDir maps stack name to its compose file directory

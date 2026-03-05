@@ -1,6 +1,6 @@
 # SwarmForge
 
-Turnkey Docker Swarm cluster management on Hetzner Cloud. SwarmForge provisions servers, sets up Docker Swarm, deploys 16 production-ready stacks, and configures networking, security, monitoring, and backups — all from a single command.
+Turnkey Docker Swarm cluster management on Hetzner Cloud. SwarmForge provisions servers, sets up Docker Swarm, deploys 18 production-ready stacks, and configures networking, security, monitoring, backups, and CI/CD runners — all from a single command.
 
 ## Quick Start
 
@@ -26,11 +26,21 @@ make build
 
 **Monitoring**: Prometheus + Node Exporter + cAdvisor, Grafana, Loki + Promtail (auto log collection), Alertmanager (Slack alerts)
 
-**Tools**: Plane.so (project management), OpenPanel (analytics), OpenStatus (uptime monitoring)
+**Tools**: Umami (web analytics), OpenStatus (uptime monitoring), Twenty (CRM)
+
+**CI/CD**: GitHub Actions self-hosted runners (scalable Swarm service)
 
 ## Architecture
 
-- 4 nodes: infra (manager), data, apps, tools (workers)
+| Node | Type | Specs | Fiyat | Rol |
+|------|------|-------|-------|-----|
+| swarm-infra | CX22 | 2 vCPU, 4 GB, 40 GB | ~€3.49/ay | Manager — routing, DNS, VPN |
+| swarm-data | CPX31 | 4 vCPU, 8 GB, 160 GB | ~€10.99/ay | Worker — databases |
+| swarm-apps | CX32 | 4 vCPU, 8 GB, 80 GB | ~€5.49/ay | Worker — apps, CI runners |
+| swarm-tools | CX32 | 4 vCPU, 8 GB, 80 GB | ~€5.49/ay | Worker — monitoring, tools |
+
+**Toplam:** ~€25.46/ay (14 vCPU, 28 GB RAM, 360 GB disk)
+
 - 3-layer networking: Hetzner private network, Docker overlay, NetBird VPN mesh
 - Security: UFW firewall, fail2ban, SSH hardening, Docker secrets, kernel tuning
 - Traefik file provider routing (no compose labels)
@@ -50,6 +60,7 @@ swarmforge dns list|add|remove|regenerate
 swarmforge backup run [--offsite]|list|restore
 swarmforge firewall status|apply
 swarmforge secret list|set|remove
+swarmforge runner deploy|scale|status|logs|remove
 swarmforge ssh <node-name>
 swarmforge logs <service-name>
 swarmforge config validate|show

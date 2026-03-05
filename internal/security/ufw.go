@@ -99,7 +99,7 @@ func generateUFWRules(node config.NodeConfig, cfg *config.Config) []string {
 			"ufw allow 80/tcp comment 'HTTP'",
 			"ufw allow 443/tcp comment 'HTTPS'",
 		)
-		toolPorts := []string{"3000", "3001", "3002", "3003", "3004", "3005", "9090", "3100"}
+		toolPorts := []string{"3000", "3020", "3030", "9090", "3100"}
 		for _, port := range toolPorts {
 			if vpnNet != "" {
 				rules = append(rules,
@@ -110,6 +110,7 @@ func generateUFWRules(node config.NodeConfig, cfg *config.Config) []string {
 				fmt.Sprintf("ufw allow from %s to any port %s proto tcp comment 'Monitoring private'", privateNet, port),
 			)
 		}
+
 	}
 
 	return rules

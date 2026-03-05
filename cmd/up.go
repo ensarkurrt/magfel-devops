@@ -312,7 +312,7 @@ func prepareAndCopyConfigs(clients map[string]*sshpkg.Client, cfg *cfgpkg.Config
 	// Deploy redis.conf to data node
 	dataNode := cfg.GetNodeByLabel("role", "data")
 	if dataNode != nil {
-		_, _ = clients[dataNode.Name].Run("mkdir -p /opt/configs/redis /opt/data/redis /opt/data/postgresql /opt/data/minio /opt/data/portainer")
+		_, _ = clients[dataNode.Name].Run("mkdir -p /opt/configs/redis /opt/configs/registry /opt/data/redis /opt/data/postgresql /opt/data/minio /opt/data/portainer /opt/data/registry")
 		copyLocalFileToNode(clients[dataNode.Name], "stacks/data-redis/redis.conf", "/opt/configs/redis/redis.conf")
 	}
 
@@ -325,6 +325,12 @@ func prepareAndCopyConfigs(clients map[string]*sshpkg.Client, cfg *cfgpkg.Config
 		copyLocalFileToNode(clients[toolsNode.Name], "stacks/mon-alertmanager/alertmanager.yml", "/opt/configs/alertmanager/alertmanager.yml")
 		copyLocalFileToNode(clients[toolsNode.Name], "stacks/log-loki/loki-config.yml", "/opt/configs/loki/loki-config.yml")
 		copyLocalFileToNode(clients[toolsNode.Name], "stacks/log-promtail/promtail-config.yml", "/opt/configs/promtail/promtail-config.yml")
+	}
+
+	// App node data dirs
+	appNode := cfg.GetNodeByLabel("role", "app")
+	if appNode != nil {
+		_, _ = clients[appNode.Name].Run("mkdir -p /opt/data/gowa")
 	}
 
 	return nil
@@ -377,8 +383,8 @@ func createAdditionalDatabases(client *sshpkg.Client, secrets map[string]string)
 		name string
 		user string
 	}{
-		{"plane", "plane"},
-		{"openpanel", "openpanel"},
+		{"umami", "umami"},
+		{"twenty", "twenty"},
 	}
 
 	for _, db := range dbs {

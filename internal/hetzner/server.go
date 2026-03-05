@@ -75,8 +75,7 @@ func (c *Client) ListServers() ([]ServerInfo, error) {
 }
 
 func (c *Client) AttachToNetwork(serverName, networkName, ip string) error {
-	_, err := c.Run("server", "attach-to-network",
-		"--server", serverName,
+	_, err := c.Run("server", "attach-to-network", serverName,
 		"--network", networkName,
 		"--ip", ip,
 	)
