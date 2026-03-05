@@ -1,0 +1,136 @@
+name: Deploy
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build Release Binary
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Determine version
+        id: version
+        run: echo "version=$(git describe --tags --always --dirty)" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          BUILD_TIME=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+          go build -ldflags "-X github.com/ensarkurrt/swarmforge/cmd.Version=${VERSION} -X github.com/ensarkurrt/swarmforge/cmd.BuildTime=${BUILD_TIME}" -o swarmforge .
+
+      - name: Verify binary
+        run: ./swarmforge version
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: swarmforge-linux-amd64
+          path: swarmforge
+          retention-days: 90
+
+  deploy:
+    name: Deploy to Cluster
+    runs-on: ubuntu-latest
+    needs: build
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download binary
+        uses: actions/download-artifact@v4
+        with:
+          name: swarmforge-linux-amd64
+
+      - name: Make binary executable
+        run: chmod +x swarmforge
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          echo "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Create config from secrets
+        run: |
+          cat > swarmforge.yml << 'CONFIGEOF'
+          ${{ secrets.SWARMFORGE_CONFIG }}
+          CONFIGEOF
+
+      - name: Validate config
+        run: ./swarmforge config validate
+
+      - name: Copy stack files to manager node
+        env:
+          MANAGER_IP: ${{ secrets.MANAGER_IP }}
+        run: |
+          rsync -avz --delete \
+            -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
+            stacks/ root@${MANAGER_IP}:/opt/stacks/
+
+      - name: Copy Traefik dynamic config
+        env:
+          MANAGER_IP: ${{ secrets.MANAGER_IP }}
+        run: |
+          rsync -avz \
+            -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
+            traefik/dynamic/ root@${MANAGER_IP}:/opt/traefik/dynamic/
+
+      - name: Deploy updated stacks
+        env:
+          MANAGER_IP: ${{ secrets.MANAGER_IP }}
+        run: |
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no root@${MANAGER_IP} << 'DEPLOY'
+          set -e
+          echo "=== Deploying stacks ==="
+          for stack_dir in /opt/stacks/*/; do
+            stack_name=$(basename "$stack_dir")
+            compose_file="${stack_dir}docker-compose.yml"
+            if [ -f "$compose_file" ]; then
+              echo "Deploying ${stack_name}..."
+              docker stack deploy -c "$compose_file" "$stack_name" --with-registry-auth 2>&1 || true
+            fi
+          done
+          echo "=== Deployment complete ==="
+          docker stack ls
+          DEPLOY
+
+      - name: Health check
+        env:
+          MANAGER_IP: ${{ secrets.MANAGER_IP }}
+        run: |
+          echo "Waiting 30s for services to stabilize..."
+          sleep 30
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no root@${MANAGER_IP} << 'HEALTH'
+          echo "=== Service Status ==="
+          docker service ls --format 'table {{.Name}}\t{{.Replicas}}\t{{.Image}}'
+
+          echo ""
+          echo "=== Unhealthy Services ==="
+          unhealthy=$(docker service ls --format '{{.Name}} {{.Replicas}}' | grep '0/' || true)
+          if [ -n "$unhealthy" ]; then
+            echo "$unhealthy"
+            echo "WARNING: Some services have 0 replicas"
+          else
+            echo "All services healthy"
+          fi
+          HEALTH
