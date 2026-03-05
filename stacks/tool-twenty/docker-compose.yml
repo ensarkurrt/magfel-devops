@@ -9,6 +9,10 @@ services:
       SERVER_URL: "https://${TWENTY_DOMAIN:-twenty.example.com}"
       FRONT_BASE_URL: "https://${TWENTY_DOMAIN:-twenty.example.com}"
       APP_SECRET: "${TWENTY_APP_SECRET}"
+      ACCESS_TOKEN_SECRET: "${TWENTY_ACCESS_TOKEN_SECRET}"
+      LOGIN_TOKEN_SECRET: "${TWENTY_LOGIN_TOKEN_SECRET}"
+      REFRESH_TOKEN_SECRET: "${TWENTY_REFRESH_TOKEN_SECRET}"
+      FILE_TOKEN_SECRET: "${TWENTY_FILE_TOKEN_SECRET}"
       STORAGE_TYPE: "local"
       STORAGE_LOCAL_PATH: "/app/.local-storage"
     ports:
@@ -37,6 +41,34 @@ services:
       timeout: 5s
       retries: 3
       start_period: 90s
+
+  worker:
+    image: twentycrm/twenty:latest
+    command: ["yarn", "worker:prod"]
+    environment:
+      PG_DATABASE_URL: "postgresql://twenty:${TWENTY_DB_PASSWORD}@data-postgresql_postgresql:5432/twenty"
+      REDIS_URL: "redis://data-redis_redis:6379/3"
+      APP_SECRET: "${TWENTY_APP_SECRET}"
+      STORAGE_TYPE: "local"
+      STORAGE_LOCAL_PATH: "/app/.local-storage"
+    volumes:
+      - /opt/data/twenty:/app/.local-storage
+    networks:
+      - backend
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.tools == true
+      restart_policy:
+        condition: on-failure
+        max_attempts: 10
+        window: 60s
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
 
 networks:
   backend:
