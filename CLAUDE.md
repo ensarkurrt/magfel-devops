@@ -23,6 +23,19 @@ Redis uses `volatile-lru` eviction policy because:
 ### Why hcloud CLI (not HTTP API)
 The `hcloud` CLI provides a clean, well-tested interface for Hetzner Cloud operations. It handles authentication, retries, and output formatting. The Go code wraps it as a subprocess and parses JSON output.
 
+## Node Specifications
+
+| Node | Type | vCPU | RAM | Disk | Fiyat | Rol |
+|------|------|------|-----|------|-------|-----|
+| swarm-infra | CX22 | 2 | 4 GB | 40 GB | ~€3.49/ay | Manager — Traefik, CoreDNS, Portainer, Registry, NetBird |
+| swarm-data | CPX31 | 4 | 8 GB | 160 GB | ~€10.99/ay | Worker — PostgreSQL, Redis, MinIO |
+| swarm-apps | CX32 | 4 | 8 GB | 80 GB | ~€5.49/ay | Worker — App workloads (app-gowa), CI runners |
+| swarm-tools | CX32 | 4 | 8 GB | 80 GB | ~€5.49/ay | Worker — Monitoring, analytics, CRM |
+
+**Toplam:** 14 vCPU, 28 GB RAM, 360 GB disk — ~€25.46/ay
+
+> **Not:** CPX31 (data node) AMD EPYC dedicated vCPU, 160 GB SSD — veritabanı I/O için en uygun seçenek. CX serisi Intel paylaşımlı vCPU, genel amaçlı workload'lar için yeterli.
+
 ## Project Structure
 
 ```

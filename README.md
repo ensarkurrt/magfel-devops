@@ -32,7 +32,15 @@ make build
 
 ## Architecture
 
-- 4 nodes: infra (manager), data, apps, tools (workers)
+| Node | Type | Specs | Fiyat | Rol |
+|------|------|-------|-------|-----|
+| swarm-infra | CX22 | 2 vCPU, 4 GB, 40 GB | ~€3.49/ay | Manager — routing, DNS, VPN |
+| swarm-data | CPX31 | 4 vCPU, 8 GB, 160 GB | ~€10.99/ay | Worker — databases |
+| swarm-apps | CX32 | 4 vCPU, 8 GB, 80 GB | ~€5.49/ay | Worker — apps, CI runners |
+| swarm-tools | CX32 | 4 vCPU, 8 GB, 80 GB | ~€5.49/ay | Worker — monitoring, tools |
+
+**Toplam:** ~€25.46/ay (14 vCPU, 28 GB RAM, 360 GB disk)
+
 - 3-layer networking: Hetzner private network, Docker overlay, NetBird VPN mesh
 - Security: UFW firewall, fail2ban, SSH hardening, Docker secrets, kernel tuning
 - Traefik file provider routing (no compose labels)
