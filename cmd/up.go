@@ -243,7 +243,7 @@ func runUp(cmd *cobra.Command, args []string) error {
 		if registryHost == "" {
 			registryHost = manager.PrivateIP + ":5000"
 		}
-		clients[node.Name].Run(fmt.Sprintf(
+		_, _ = clients[node.Name].Run(fmt.Sprintf(
 			"docker login %s -u %s -p '%s' 2>/dev/null || true",
 			registryHost, c.Services.Registry.User, secrets["registry_password"]))
 	}
@@ -253,7 +253,7 @@ func runUp(cmd *cobra.Command, args []string) error {
 	ui.Step(18, totalSteps, "Setting up backup cron jobs")
 	dataNode := c.GetNodeByLabel("role", "data")
 	if dataNode != nil {
-		backup.SetupCron(clients[dataNode.Name], c)
+		_ = backup.SetupCron(clients[dataNode.Name], c)
 	}
 	ui.Success("Backup cron configured")
 
@@ -285,7 +285,7 @@ func saveCredentials(secrets map[string]string, tokens *swarm.Tokens, serverIPs 
 		"created_at":   time.Now().Format(time.RFC3339),
 	}
 	data, _ := yaml.Marshal(creds)
-	os.WriteFile(".credentials", data, 0600)
+	_ = os.WriteFile(".credentials", data, 0600)
 }
 
 func prepareAndCopyConfigs(clients map[string]*sshpkg.Client, cfg *cfgpkg.Config, secrets map[string]string) error {
@@ -299,12 +299,12 @@ func prepareAndCopyConfigs(clients map[string]*sshpkg.Client, cfg *cfgpkg.Config
 
 		// Deploy Corefile
 		corefile := dns.GenerateCorefile(cfg)
-		clients[infraNode.Name].WriteContent("/opt/configs/coredns/Corefile", corefile)
+		_ = clients[infraNode.Name].WriteContent("/opt/configs/coredns/Corefile", corefile)
 	}
 
 	// Deploy traefik dynamic config to infra node
 	if infraNode != nil {
-		clients[infraNode.Name].Run("mkdir -p /opt/traefik/dynamic /opt/traefik/acme")
+		_, _ = clients[infraNode.Name].Run("mkdir -p /opt/traefik/dynamic /opt/traefik/acme")
 		copyLocalFileToNode(clients[infraNode.Name], "traefik/dynamic/routes.yml", "/opt/traefik/dynamic/routes.yml")
 		copyLocalFileToNode(clients[infraNode.Name], "traefik/dynamic/middlewares.yml", "/opt/traefik/dynamic/middlewares.yml")
 	}
@@ -312,14 +312,14 @@ func prepareAndCopyConfigs(clients map[string]*sshpkg.Client, cfg *cfgpkg.Config
 	// Deploy redis.conf to data node
 	dataNode := cfg.GetNodeByLabel("role", "data")
 	if dataNode != nil {
-		clients[dataNode.Name].Run("mkdir -p /opt/configs/redis /opt/data/redis /opt/data/postgresql /opt/data/minio /opt/data/portainer")
+		_, _ = clients[dataNode.Name].Run("mkdir -p /opt/configs/redis /opt/data/redis /opt/data/postgresql /opt/data/minio /opt/data/portainer")
 		copyLocalFileToNode(clients[dataNode.Name], "stacks/data-redis/redis.conf", "/opt/configs/redis/redis.conf")
 	}
 
 	// Deploy monitoring configs to tools node
 	toolsNode := cfg.GetNodeByLabel("role", "tools")
 	if toolsNode != nil {
-		clients[toolsNode.Name].Run("mkdir -p /opt/configs/prometheus /opt/configs/loki /opt/configs/promtail /opt/configs/alertmanager /opt/configs/grafana/provisioning/datasources")
+		_, _ = clients[toolsNode.Name].Run("mkdir -p /opt/configs/prometheus /opt/configs/loki /opt/configs/promtail /opt/configs/alertmanager /opt/configs/grafana/provisioning/datasources")
 		copyLocalFileToNode(clients[toolsNode.Name], "stacks/mon-prometheus/prometheus.yml", "/opt/configs/prometheus/prometheus.yml")
 		copyLocalFileToNode(clients[toolsNode.Name], "stacks/mon-prometheus/alert-rules.yml", "/opt/configs/prometheus/alert-rules.yml")
 		copyLocalFileToNode(clients[toolsNode.Name], "stacks/mon-alertmanager/alertmanager.yml", "/opt/configs/alertmanager/alertmanager.yml")
@@ -345,7 +345,7 @@ func copyStackFiles(managerClient *sshpkg.Client) error {
 	for _, stackName := range deploy.DeploymentOrder {
 		localDir := filepath.Join("stacks", stackName)
 		remoteDir := deploy.StackDir(stackName)
-		managerClient.Run(fmt.Sprintf("mkdir -p %s", remoteDir))
+		_, _ = managerClient.Run(fmt.Sprintf("mkdir -p %s", remoteDir))
 
 		composePath := filepath.Join(localDir, "docker-compose.yml")
 		data, err := os.ReadFile(composePath)
@@ -365,7 +365,7 @@ func copyStackFiles(managerClient *sshpkg.Client) error {
 			}
 			localFile := filepath.Join(localDir, entry.Name())
 			data, _ := os.ReadFile(localFile)
-			managerClient.WriteContent(filepath.Join(remoteDir, entry.Name()), string(data))
+			_ = managerClient.WriteContent(filepath.Join(remoteDir, entry.Name()), string(data))
 		}
 	}
 	return nil

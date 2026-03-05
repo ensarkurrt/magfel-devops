@@ -64,7 +64,7 @@ func GetServiceLogs(client *sshpkg.Client, service string, tail string) (string,
 }
 
 func StackExists(client *sshpkg.Client, name string) bool {
-	out, err := client.Run(fmt.Sprintf("docker stack ls --format '{{.Name}}'"))
+	out, err := client.Run("docker stack ls --format '{{.Name}}'")
 	if err != nil {
 		return false
 	}

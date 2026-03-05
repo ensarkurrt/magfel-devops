@@ -39,7 +39,7 @@ func RunBackup(clients map[string]*sshpkg.Client, cfg *config.Config, offsite bo
 			continue
 		}
 		ui.Info("Backing up %s...", step.name)
-		step.client.Run(fmt.Sprintf("mkdir -p %s", backupDir))
+		_, _ = step.client.Run(fmt.Sprintf("mkdir -p %s", backupDir))
 		if err := step.fn(step.client, backupDir); err != nil {
 			ui.Error("Backup %s failed: %s", step.name, err)
 		} else {

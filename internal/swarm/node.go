@@ -33,7 +33,7 @@ func ListNodes(client *sshpkg.Client) (string, error) {
 
 func RemoveNode(client *sshpkg.Client, nodeName string) error {
 	// Drain first
-	client.Run(fmt.Sprintf("docker node update --availability drain %s", nodeName))
+	_, _ = client.Run(fmt.Sprintf("docker node update --availability drain %s", nodeName))
 	_, err := client.Run(fmt.Sprintf("docker node rm --force %s", nodeName))
 	return err
 }

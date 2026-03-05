@@ -32,7 +32,7 @@ func CreateSecret(client *sshpkg.Client, name, value string) error {
 		shellEscape(name), shellEscape(tmpPath), shellEscape(tmpPath)))
 	if err != nil {
 		// Clean up temp file on failure
-		client.Run(fmt.Sprintf("rm -f '%s'", shellEscape(tmpPath)))
+		_, _ = client.Run(fmt.Sprintf("rm -f '%s'", shellEscape(tmpPath)))
 		return fmt.Errorf("creating secret %s: %w", name, err)
 	}
 	return nil
@@ -49,13 +49,13 @@ func ListSecrets(client *sshpkg.Client) (string, error) {
 
 func UpdateSecret(client *sshpkg.Client, name, value string) error {
 	// Docker secrets are immutable — remove and recreate
-	RemoveSecret(client, name)
+	_ = RemoveSecret(client, name)
 	return CreateSecret(client, name, value)
 }
 
 func GeneratePassword(length int) string {
 	b := make([]byte, length)
-	rand.Read(b)
+	_, _ = rand.Read(b)
 	return base64.URLEncoding.EncodeToString(b)[:length]
 }
 

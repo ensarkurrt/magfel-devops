@@ -132,7 +132,7 @@ func (c *Client) WriteFile(remotePath string, data []byte, mode os.FileMode) err
 		w, _ := session.StdinPipe()
 		defer w.Close()
 		fmt.Fprintf(w, "C%04o %d %s\n", mode, len(data), base)
-		io.Copy(w, bytes.NewReader(data))
+		_, _ = io.Copy(w, bytes.NewReader(data))
 		fmt.Fprint(w, "\x00")
 	}()
 

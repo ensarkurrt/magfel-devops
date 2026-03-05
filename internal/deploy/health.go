@@ -69,7 +69,7 @@ func WaitForService(client *sshpkg.Client, serviceName string, maxRetries int) e
 		if out != "" && !strings.HasPrefix(out, "0/") {
 			return nil
 		}
-		client.Run("sleep 5")
+		_, _ = client.Run("sleep 5")
 	}
 	return fmt.Errorf("service %s did not become healthy", serviceName)
 }
