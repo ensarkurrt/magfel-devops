@@ -2,12 +2,12 @@
 
 ## What This Project Does
 
-SwarmForge is a Go CLI tool that provisions and manages Docker Swarm clusters on Hetzner Cloud. It automates the entire lifecycle: server creation, Docker Swarm setup, stack deployment, networking, security hardening, monitoring, backup, DNS management, and CI/CD runner orchestration.
+SwarmForge is a Go CLI tool that provisions and manages Docker Swarm clusters on Hetzner Cloud. It automates the entire lifecycle: server creation, Docker Swarm setup, 18-stack deployment, networking, security hardening, monitoring, backup, DNS management, and CI/CD runner orchestration.
 
 ## Architecture Decisions
 
 ### Why Traefik File Provider (not Compose Labels)
-All route definitions live in `traefik/dynamic/routes.yml` and middleware definitions in `traefik/dynamic/middlewares.yml`. This centralizes routing configuration, makes it auditable, and avoids scattering route definitions across 16 compose files. The file provider watches for changes and hot-reloads.
+All route definitions live in `traefik/dynamic/routes.yml` and middleware definitions in `traefik/dynamic/middlewares.yml`. This centralizes routing configuration, makes it auditable, and avoids scattering route definitions across 18 compose files. The file provider watches for changes and hot-reloads.
 
 ### Why Swarm DNS vs CoreDNS (dual DNS)
 - **Swarm built-in DNS**: Container-to-container communication within the `backend` overlay network. Service names resolve automatically (e.g., `data-postgresql_postgresql`).
@@ -48,7 +48,7 @@ templates/     → Template files (Grafana datasources, etc.)
 | Command | Description |
 |---------|-------------|
 | `swarmforge init` | Interactive config wizard → creates swarmforge.yml |
-| `swarmforge up` | Full infrastructure provisioning (19 steps) |
+| `swarmforge up` | Full infrastructure provisioning (17 stacks + setup steps) |
 | `swarmforge down` | Destroy all infrastructure (with confirmation) |
 | `swarmforge status` | Detailed cluster status report |
 | `swarmforge node list\|add\|remove\|promote\|demote` | Swarm node management |

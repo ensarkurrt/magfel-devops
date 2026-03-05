@@ -39,8 +39,8 @@ This covers everything in one record. Recommended if you control the domain.
 | A | `grafana.example.com` | Grafana (dashboards) |
 | A | `minio.example.com` | MinIO Console (object storage UI) |
 | A | `s3.example.com` | MinIO S3 API endpoint |
-| A | `plane.example.com` | Plane.so (project management) |
-| A | `openpanel.example.com` | OpenPanel (analytics) |
+| A | `umami.example.com` | Umami (web analytics) |
+| A | `twenty.example.com` | Twenty (CRM) |
 | A | `traefik.example.com` | Traefik Dashboard |
 | A | `prometheus.example.com` | Prometheus (metrics) |
 | A | `registry.example.com` | Docker Registry UI |

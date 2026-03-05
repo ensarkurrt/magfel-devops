@@ -1,6 +1,6 @@
 # SwarmForge
 
-Turnkey Docker Swarm cluster management on Hetzner Cloud. SwarmForge provisions servers, sets up Docker Swarm, deploys 16 production-ready stacks, and configures networking, security, monitoring, and backups — all from a single command.
+Turnkey Docker Swarm cluster management on Hetzner Cloud. SwarmForge provisions servers, sets up Docker Swarm, deploys 18 production-ready stacks, and configures networking, security, monitoring, backups, and CI/CD runners — all from a single command.
 
 ## Quick Start
 
@@ -26,7 +26,7 @@ make build
 
 **Monitoring**: Prometheus + Node Exporter + cAdvisor, Grafana, Loki + Promtail (auto log collection), Alertmanager (Slack alerts)
 
-**Tools**: Plane.so (project management), OpenPanel (analytics), OpenStatus (uptime monitoring)
+**Tools**: Umami (web analytics), OpenStatus (uptime monitoring), Twenty (CRM)
 
 **CI/CD**: GitHub Actions self-hosted runners (scalable Swarm service)
 
