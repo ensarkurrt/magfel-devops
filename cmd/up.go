@@ -322,12 +322,37 @@ func runUp(cmd *cobra.Command, args []string) error {
 	}
 	ui.Success("Registry login configured")
 
-	ui.Step(20, totalSteps, "Setting up backup cron jobs")
+	ui.Step(20, totalSteps, "Setting up backup and offsite sync")
 	dataNode := c.GetNodeByLabel("role", "data")
 	if dataNode != nil {
+		// Create Storage Box if not already configured
+		if c.Backup.StorageBox.Host == "" {
+			ui.Info("Creating Hetzner Storage Box...")
+			box, _, err := hc.CreateStorageBox(
+				c.Cluster.Name+"-backups",
+				c.Backup.StorageBox.Type,
+				c.Backup.StorageBox.Location,
+				c.Hetzner.SSHKeyName,
+			)
+			if err != nil {
+				ui.Warn("Storage Box creation failed: %s (offsite backup disabled)", err)
+			} else {
+				hetzner.FillStorageBoxConfig(c, box)
+				ui.Success("Storage Box created: %s@%s", box.Login, box.Server)
+			}
+		}
+
+		if c.Backup.StorageBox.Host != "" {
+			ui.Info("Setting up Storage Box SSH key...")
+			if err := backup.SetupStorageBoxSSH(clients[dataNode.Name], c); err != nil {
+				ui.Warn("Storage Box SSH setup: %s", err)
+			} else {
+				ui.Success("Storage Box SSH configured")
+			}
+		}
 		_ = backup.SetupCron(clients[dataNode.Name], c)
 	}
-	ui.Success("Backup cron configured")
+	ui.Success("Backup cron configured (offsite: %v)", c.Backup.StorageBox.Host != "")
 
 	// Health check
 	ui.Step(21, totalSteps, "Running health checks")

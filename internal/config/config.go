@@ -112,10 +112,12 @@ type BackupConfig struct {
 }
 
 type StorageBoxConfig struct {
-	User string `yaml:"user"`
-	Host string `yaml:"host"`
-	Port int    `yaml:"port"`
-	Path string `yaml:"path"`
+	User     string `yaml:"user"`
+	Host     string `yaml:"host"`
+	Port     int    `yaml:"port"`
+	Path     string `yaml:"path"`
+	Type     string `yaml:"type"`
+	Location string `yaml:"location"`
 }
 
 type FirewallConfig struct {

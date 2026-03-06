@@ -143,6 +143,17 @@ func getClientByRole(clients map[string]*sshpkg.Client, cfg *config.Config, role
 }
 
 func SetupCron(client *sshpkg.Client, cfg *config.Config) error {
+	offsiteBlock := ""
+	sb := cfg.Backup.StorageBox
+	if sb.Host != "" && sb.User != "" {
+		offsiteBlock = fmt.Sprintf(`
+# Offsite sync to Hetzner Storage Box
+rsync -avz --delete -e "ssh -p %d -o StrictHostKeyChecking=no" \
+  %s/ %s@%s:%s/ >> /var/log/backup-offsite.log 2>&1
+echo "Offsite sync completed"
+`, sb.Port, cfg.Backup.LocalDir, sb.User, sb.Host, sb.Path)
+	}
+
 	script := fmt.Sprintf(`cat > /opt/scripts/backup.sh << 'SCRIPT'
 #!/bin/bash
 TIMESTAMP=$(date +%%Y%%m%%d-%%H%%M%%S)
@@ -162,13 +173,14 @@ cp /opt/data/redis/dump.rdb "$BACKUP_DIR/redis-dump.rdb" 2>/dev/null
 find %s -maxdepth 1 -type d -mtime +%d -exec rm -rf {} \; 2>/dev/null
 
 echo "Backup completed: $BACKUP_DIR"
+%s
 SCRIPT
 chmod +x /opt/scripts/backup.sh
 mkdir -p /opt/scripts
 
 # Install cron
 (crontab -l 2>/dev/null | grep -v backup.sh; echo "%s /opt/scripts/backup.sh >> /var/log/backup.log 2>&1") | crontab -
-`, cfg.Backup.LocalDir, cfg.Backup.LocalDir, cfg.Backup.RetentionDays, cfg.Backup.Schedule)
+`, cfg.Backup.LocalDir, cfg.Backup.LocalDir, cfg.Backup.RetentionDays, offsiteBlock, cfg.Backup.Schedule)
 
 	_, err := client.Run(script)
 	return err

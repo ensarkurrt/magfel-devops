@@ -138,10 +138,12 @@ backup:
   local_dir: "/opt/backups"
   schedule: "0 1 * * *"
   storage_box:
-    user: ""
-    host: ""
+    user: ""       # auto-filled after creation
+    host: ""       # auto-filled after creation
     port: 23
     path: "/backups/swarm"
+    type: "bx11"       # sb11 (1TB), sb21 (5TB), sb31 (10TB), sb41 (20TB)
+    location: "fsn1"   # fsn1, nbg1, hel1
 
 firewall:
   rules:

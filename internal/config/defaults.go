@@ -75,8 +75,10 @@ func DefaultConfig() *Config {
 			LocalDir:      "/opt/backups",
 			Schedule:      "0 1 * * *",
 			StorageBox: StorageBoxConfig{
-				Port: 23,
-				Path: "/backups/swarm",
+				Port:     23,
+				Path:     "/backups/swarm",
+				Type:     "sb11",
+				Location: "fsn1",
 			},
 		},
 		Firewall: FirewallConfig{
