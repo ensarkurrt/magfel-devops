@@ -58,10 +58,12 @@ deploy_stacks = true
 
 # ─── Phase 2: Lockdown ──────────────────────────────────────────────
 # İlk terraform apply'da BOŞ bırak → her şey açık (setup modu)
-# NetBird UI'dan setup key aldıktan sonra:
-#   terraform apply -var='netbird_setup_key=nb-xxxxxxxxxxxx'
-# Bu komut:
-#   - Tüm node'lara NetBird kurar
-#   - UFW firewall'ı aktif eder (VPN subnet dahil)
-#   - Hetzner Firewall'ı kısıtlar (sadece SSH, HTTP/S, WireGuard)
+# NetBird UI'dan setup key aldıktan sonra BURAYA YAZ:
+#   netbird_setup_key = "nb-xxxxxxxxxxxx"
+# Sonra: terraform apply
+#
+# Key burada kalıcı olduğu sürece:
+#   - Sonraki tüm apply'larda yeni node'lar da otomatik lockdown olur
+#   - Mevcut lockdown'lı node'lara dokunulmaz (idempotent)
+#   - Hetzner Firewall kısıtlı kalır
 netbird_setup_key = ""

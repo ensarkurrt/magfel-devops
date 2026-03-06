@@ -53,7 +53,11 @@ variable "domain" {
 # Akış:
 #   1. terraform apply                                    → sunucular açık
 #   2. NetBird UI'dan setup key al
-#   3. terraform apply -var='netbird_setup_key=nb-xxx'    → kilitlenir
+#   3. terraform.tfvars'a yaz:  netbird_setup_key = "nb-xxx"
+#   4. terraform apply                                    → kilitlenir
+#
+# Key bir kez tfvars'a yazıldığında kalıcıdır.
+# Sonraki tüm apply'larda yeni eklenen node'lar da otomatik lockdown olur.
 #
 variable "netbird_setup_key" {
   description = "NetBird setup key — boş ise lockdown YAPILMAZ, dolu ise tüm node'lar kilitlenir"

@@ -393,6 +393,11 @@ resource "null_resource" "worker_labels" {
 resource "null_resource" "coredns_config" {
   depends_on = [null_resource.swarm_init]
 
+  # Node eklenip çıkarıldığında hosts dosyasını güncelle
+  triggers = {
+    hosts_content = local.coredns_hosts
+  }
+
   connection {
     type        = "ssh"
     host        = module.manager_nodes[local.leader_key].public_ip
@@ -470,10 +475,10 @@ resource "null_resource" "lockdown_managers" {
   provisioner "remote-exec" {
     inline = [
       "echo '=== Phase 2: Lockdown on ${var.cluster_name}-mgr-${each.key} ==='",
-      "curl -fsSL https://pkgs.netbird.io/install.sh | sh",
-      "netbird up --setup-key '${var.netbird_setup_key}'",
+      "command -v netbird >/dev/null || curl -fsSL https://pkgs.netbird.io/install.sh | sh",
+      "netbird status | grep -q 'Connected' || netbird up --setup-key '${var.netbird_setup_key}'",
       "netbird status",
-      "/opt/scripts/enable-ufw.sh",
+      "ufw status | grep -q 'Status: active' || /opt/scripts/enable-ufw.sh",
       "echo 'Lockdown complete on ${var.cluster_name}-mgr-${each.key}'",
     ]
   }
@@ -495,10 +500,10 @@ resource "null_resource" "lockdown_workers" {
   provisioner "remote-exec" {
     inline = [
       "echo '=== Phase 2: Lockdown on ${var.cluster_name}-wkr-${each.key} ==='",
-      "curl -fsSL https://pkgs.netbird.io/install.sh | sh",
-      "netbird up --setup-key '${var.netbird_setup_key}'",
+      "command -v netbird >/dev/null || curl -fsSL https://pkgs.netbird.io/install.sh | sh",
+      "netbird status | grep -q 'Connected' || netbird up --setup-key '${var.netbird_setup_key}'",
       "netbird status",
-      "/opt/scripts/enable-ufw.sh",
+      "ufw status | grep -q 'Status: active' || /opt/scripts/enable-ufw.sh",
       "echo 'Lockdown complete on ${var.cluster_name}-wkr-${each.key}'",
     ]
   }
