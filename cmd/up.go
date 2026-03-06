@@ -34,7 +34,7 @@ func init() {
 
 func runUp(cmd *cobra.Command, args []string) error {
 	c := mustLoadConfig()
-	totalSteps := 21
+	totalSteps := 20
 
 	// Validate config
 	ui.Step(1, totalSteps, "Validating configuration")
@@ -218,7 +218,7 @@ func runUp(cmd *cobra.Command, args []string) error {
 
 	// Copy stack compose files
 	ui.Step(14, totalSteps, "Copying stack files to nodes")
-	if err := copyStackFiles(managerClient); err != nil {
+	if err := copyStackFiles(managerClient, c, secrets); err != nil {
 		return fmt.Errorf("copying stacks: %w", err)
 	}
 	ui.Success("Stack files copied")
@@ -246,6 +246,19 @@ func runUp(cmd *cobra.Command, args []string) error {
 		}
 		sp.StopWithSuccess(fmt.Sprintf("Stack %s deployed", stackName))
 		time.Sleep(2 * time.Second)
+
+		// Create additional databases right after PostgreSQL is deployed and healthy.
+		// NetBird and other services need their databases BEFORE they start.
+		// Must run on the data node where the PostgreSQL container is running.
+		if stackName == "data-postgresql" {
+			dataNode := c.GetNodeByLabel("role", "data")
+			if dataNode != nil && clients[dataNode.Name] != nil {
+				ui.Info("Waiting for PostgreSQL to be healthy...")
+				time.Sleep(15 * time.Second)
+				createAdditionalDatabases(clients[dataNode.Name], secrets)
+				ui.Success("Additional databases created")
+			}
+		}
 	}
 
 	// NetBird setup — prompt for setup key
@@ -304,13 +317,8 @@ func runUp(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Create additional databases
-	ui.Step(18, totalSteps, "Creating additional databases")
-	createAdditionalDatabases(managerClient, secrets)
-	ui.Success("Additional databases created")
-
 	// Registry login on all nodes
-	ui.Step(19, totalSteps, "Docker registry login on all nodes")
+	ui.Step(18, totalSteps, "Docker registry login on all nodes")
 	for _, node := range c.Nodes {
 		registryHost := c.Domains.Internal["registry"]
 		if registryHost == "" {
@@ -322,7 +330,7 @@ func runUp(cmd *cobra.Command, args []string) error {
 	}
 	ui.Success("Registry login configured")
 
-	ui.Step(20, totalSteps, "Setting up backup and offsite sync")
+	ui.Step(19, totalSteps, "Setting up backup and offsite sync")
 	dataNode := c.GetNodeByLabel("role", "data")
 	if dataNode != nil {
 		// Create Storage Box if not already configured
@@ -355,7 +363,7 @@ func runUp(cmd *cobra.Command, args []string) error {
 	ui.Success("Backup cron configured (offsite: %v)", c.Backup.StorageBox.Host != "")
 
 	// Health check
-	ui.Step(21, totalSteps, "Running health checks")
+	ui.Step(20, totalSteps, "Running health checks")
 	time.Sleep(10 * time.Second) // Wait for services to start
 	deploy.RunHealthChecks(clients)
 	deploy.CheckServiceReplicas(managerClient)
@@ -401,7 +409,7 @@ func prepareAndCopyConfigs(clients map[string]*sshpkg.Client, cfg *cfgpkg.Config
 
 	// Deploy traefik dynamic config to infra node
 	if infraNode != nil {
-		_, _ = clients[infraNode.Name].Run("mkdir -p /var/log/traefik /opt/traefik/dynamic /opt/traefik/acme /opt/configs/netbird /opt/data/portainer")
+		_, _ = clients[infraNode.Name].Run("mkdir -p /var/log/traefik /opt/traefik/dynamic /opt/traefik/acme /opt/configs/netbird /opt/data/portainer /opt/data/netbird")
 		copyLocalFileToNodeTemplated(clients[infraNode.Name], "traefik/dynamic/routes.yml", "/opt/traefik/dynamic/routes.yml", cfg)
 		copyLocalFileToNode(clients[infraNode.Name], "traefik/dynamic/middlewares.yml", "/opt/traefik/dynamic/middlewares.yml")
 		copyNetbirdConfig(clients[infraNode.Name], cfg, secrets["netbird_db_password"], secrets["netbird_relay_secret"])
@@ -465,7 +473,7 @@ func copyLocalFileToNodeTemplated(client *sshpkg.Client, localPath, remotePath s
 	}
 }
 
-func copyStackFiles(managerClient *sshpkg.Client) error {
+func copyStackFiles(managerClient *sshpkg.Client, cfg *cfgpkg.Config, secrets map[string]string) error {
 	for _, stackName := range deploy.DeploymentOrder {
 		localDir := filepath.Join("stacks", stackName)
 		remoteDir := deploy.StackDir(stackName)
@@ -477,7 +485,16 @@ func copyStackFiles(managerClient *sshpkg.Client) error {
 			ui.Warn("Cannot read %s: %s", composePath, err)
 			continue
 		}
-		if err := managerClient.WriteContent(remoteDir+"/docker-compose.yml", string(data)); err != nil {
+
+		// Template replacement: domain
+		content := strings.ReplaceAll(string(data), "example.com", cfg.Domains.Base)
+
+		// Stack-specific replacements
+		if stackName == "infra-netbird" {
+			content = strings.ReplaceAll(content, "NETBIRD_DB_PASSWORD", secrets["netbird_db_password"])
+		}
+
+		if err := managerClient.WriteContent(remoteDir+"/docker-compose.yml", content); err != nil {
 			return fmt.Errorf("copying %s: %w", stackName, err)
 		}
 
@@ -488,13 +505,14 @@ func copyStackFiles(managerClient *sshpkg.Client) error {
 				continue
 			}
 			localFile := filepath.Join(localDir, entry.Name())
-			data, _ := os.ReadFile(localFile)
-			_ = managerClient.WriteContent(filepath.Join(remoteDir, entry.Name()), string(data))
+			fileData, _ := os.ReadFile(localFile)
+			_ = managerClient.WriteContent(filepath.Join(remoteDir, entry.Name()), string(fileData))
 		}
 	}
 	return nil
 }
 
+// createAdditionalDatabases must run on the node where PostgreSQL is deployed (data node).
 func createAdditionalDatabases(client *sshpkg.Client, secrets map[string]string) {
 	dbs := []struct {
 		name string
@@ -532,7 +550,7 @@ func copyNetbirdConfig(client *sshpkg.Client, cfg *cfgpkg.Config, dbPassword, re
 		ui.Warn("Cannot read stacks/infra-netbird/config.yaml: %s", err)
 		return
 	}
-	encryptionKey := swarm.GeneratePassword(32)
+	encryptionKey := swarm.GenerateBase64Key(32)
 	content := strings.ReplaceAll(string(data), "example.com", cfg.Domains.Base)
 	content = strings.ReplaceAll(content, "NETBIRD_DB_PASSWORD", dbPassword)
 	content = strings.ReplaceAll(content, "NETBIRD_RELAY_SECRET", relaySecret)

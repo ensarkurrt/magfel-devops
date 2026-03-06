@@ -59,6 +59,14 @@ func GeneratePassword(length int) string {
 	return base64.URLEncoding.EncodeToString(b)[:length]
 }
 
+// GenerateBase64Key generates a standard base64-encoded random key.
+// Use this when the consumer expects valid base64 (e.g. NetBird encryptionKey).
+func GenerateBase64Key(nBytes int) string {
+	b := make([]byte, nBytes)
+	_, _ = rand.Read(b)
+	return base64.StdEncoding.EncodeToString(b)
+}
+
 func SecretExists(client *sshpkg.Client, name string) bool {
 	_, err := client.Run(fmt.Sprintf("docker secret inspect %s", name))
 	return err == nil

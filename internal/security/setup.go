@@ -19,6 +19,7 @@ func SetupNode(client *sshpkg.Client, node config.NodeConfig, cfg *config.Config
 		name string
 		fn   func(*sshpkg.Client, config.NodeConfig, *config.Config) error
 	}{
+		{"Setting hostname", setHostname},
 		{"Installing base packages", installBasePackages},
 		{"Configuring private network interface", configurePrivateNetwork},
 		{"Installing Docker", installDocker},
@@ -45,6 +46,11 @@ func SetupNode(client *sshpkg.Client, node config.NodeConfig, cfg *config.Config
 	return nil
 }
 
+func setHostname(client *sshpkg.Client, node config.NodeConfig, _ *config.Config) error {
+	_, err := client.Run(fmt.Sprintf("hostnamectl set-hostname '%s'", shellEscape(node.Name)))
+	return err
+}
+
 func installBasePackages(client *sshpkg.Client, _ config.NodeConfig, _ *config.Config) error {
 	script := `export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
@@ -59,19 +65,16 @@ apt-get install -y -qq \
 	return err
 }
 
-func configurePrivateNetwork(client *sshpkg.Client, node config.NodeConfig, cfg *config.Config) error {
+func configurePrivateNetwork(client *sshpkg.Client, node config.NodeConfig, _ *config.Config) error {
 	if node.PrivateIP == "" {
 		return nil
 	}
-	// Extract prefix length from network subnet (e.g. "10.0.0.0/24" → "24")
-	prefix := "24"
-	if cfg.Network.Subnet != "" {
-		parts := strings.SplitN(cfg.Network.Subnet, "/", 2)
-		if len(parts) == 2 {
-			prefix = parts[1]
-		}
-	}
-	script := fmt.Sprintf(`
+	// Hetzner Cloud assigns private IPs via DHCP with /32 mask and routes
+	// through a gateway (e.g. 10.0.0.1). We must NOT add a static /24 address
+	// because that creates a local route that bypasses the gateway, breaking
+	// inter-node communication. Instead, just ensure the interface is UP and
+	// let Hetzner's DHCP handle the IP and routing.
+	script := `
 # Hetzner private network interface is ens10 on most images; fallback to others
 IFACE=""
 for candidate in ens10 enp7s0 eth1; do
@@ -95,24 +98,15 @@ fi
 
 echo "Configuring private network on interface: $IFACE"
 ip link set "$IFACE" up
-ip addr show "$IFACE" | grep -q '%s' || ip addr add %s/%s dev "$IFACE"
+ip link set "$IFACE" mtu 1450
 
-# Persist via netplan (Ubuntu 18.04+)
-cat > /etc/netplan/60-hetzner-private.yaml << NETPLAN
-network:
-  version: 2
-  ethernets:
-    $IFACE:
-      addresses:
-        - %s/%s
-      mtu: 1450
-NETPLAN
-chmod 600 /etc/netplan/60-hetzner-private.yaml
+# Remove any conflicting static netplan config that overrides DHCP routing
+rm -f /etc/netplan/60-hetzner-private.yaml
 netplan apply 2>/dev/null || true
 
-# Wait for interface to be fully ready
+# Wait for DHCP to assign IP and routes
 sleep 3
-`, node.PrivateIP, node.PrivateIP, prefix, node.PrivateIP, prefix)
+`
 	_, err := client.Run(script)
 	return err
 }
