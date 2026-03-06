@@ -92,6 +92,16 @@ variable "managers" {
       labels      = { "role" = "infra" }
     }
   }
+
+  validation {
+    condition     = sum([for g in var.managers : g.replicas]) > 0
+    error_message = "En az 1 manager node olmalı (toplam replicas > 0)"
+  }
+
+  validation {
+    condition     = alltrue([for g in var.managers : g.replicas >= 0])
+    error_message = "replicas negatif olamaz"
+  }
 }
 
 variable "workers" {

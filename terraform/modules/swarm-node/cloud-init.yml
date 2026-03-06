@@ -88,6 +88,22 @@ write_files:
 runcmd:
   - sysctl --system
 
+  # ─── Kernel modules for overlay networking ─────────────────────────
+  - modprobe overlay
+  - modprobe br_netfilter
+  - |
+    cat > /etc/modules-load.d/swarm.conf <<'MODULES'
+    overlay
+    br_netfilter
+    MODULES
+  - |
+    cat >> /etc/sysctl.d/99-swarm-tuning.conf <<'BRIDGE'
+    net.bridge.bridge-nf-call-iptables = 1
+    net.bridge.bridge-nf-call-ip6tables = 1
+    net.ipv4.ip_forward = 1
+    BRIDGE
+  - sysctl --system
+
   # ─── Docker ────────────────────────────────────────────────────────
   - curl -fsSL https://get.docker.com | sh
   - mkdir -p /etc/docker
