@@ -1,4 +1,8 @@
 http:
+  serversTransports:
+    insecureTransport:
+      insecureSkipVerify: true
+
   routers:
     # === VPN-ONLY ROUTES ===
 
@@ -72,6 +76,39 @@ http:
         certResolver: letsencrypt
       middlewares:
         - vpn-whitelist
+
+    # NetBird — gRPC (signal + management, h2c backend gerektirir)
+    # Traefik v3: PathPrefix() only accepts one argument, use || to combine
+    netbird-grpc:
+      rule: "Host(`netbird.example.com`) && (PathPrefix(`/signalexchange.SignalExchange/`) || PathPrefix(`/management.ManagementService/`) || PathPrefix(`/management.ProxyService/`))"
+      service: netbird-grpc-svc
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      priority: 20
+
+    # NetBird — HTTP backend (relay, api, oauth2)
+    netbird-backend:
+      rule: "Host(`netbird.example.com`) && (PathPrefix(`/relay`) || PathPrefix(`/ws-proxy/`) || PathPrefix(`/api`) || PathPrefix(`/oauth2`))"
+      service: netbird-backend-svc
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      priority: 10
+
+    # NetBird — Dashboard (catch-all, en düşük priority)
+    netbird-dashboard:
+      rule: "Host(`netbird.example.com`)"
+      service: netbird-dashboard-svc
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - secure-headers
+      priority: 1
 
     # Docker Registry
     registry:
@@ -169,6 +206,21 @@ http:
       loadBalancer:
         servers:
           - url: "http://data-minio_minio:9000"
+
+    netbird-grpc-svc:
+      loadBalancer:
+        servers:
+          - url: "h2c://infra-netbird_netbird:80"
+
+    netbird-backend-svc:
+      loadBalancer:
+        servers:
+          - url: "http://infra-netbird_netbird:80"
+
+    netbird-dashboard-svc:
+      loadBalancer:
+        servers:
+          - url: "http://infra-netbird_dashboard:80"
 
     registry-svc:
       loadBalancer:

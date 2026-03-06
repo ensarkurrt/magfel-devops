@@ -20,6 +20,7 @@ func SetupNode(client *sshpkg.Client, node config.NodeConfig, cfg *config.Config
 		fn   func(*sshpkg.Client, config.NodeConfig, *config.Config) error
 	}{
 		{"Installing base packages", installBasePackages},
+		{"Configuring private network interface", configurePrivateNetwork},
 		{"Installing Docker", installDocker},
 		{"Hardening SSH", HardenSSH},
 		{"Setting up fail2ban", SetupFail2ban},
@@ -28,6 +29,9 @@ func SetupNode(client *sshpkg.Client, node config.NodeConfig, cfg *config.Config
 			return ApplyUFW(c, n, cfg)
 		}},
 		{"Creating data directories", createDataDirs},
+		{"Disabling DNS stub listener", func(c *sshpkg.Client, _ config.NodeConfig, _ *config.Config) error {
+			return disableDNSStubListener(c)
+		}},
 		{"Setting up auto-updates", setupAutoUpdates},
 	}
 
@@ -49,8 +53,66 @@ apt-get install -y -qq \
   net-tools dnsutils iputils-ping \
   ca-certificates gnupg lsb-release \
   software-properties-common \
-  apache2-utils rsync \
+  apache2-utils rsync ufw \
   unattended-upgrades apt-listchanges`
+	_, err := client.Run(script)
+	return err
+}
+
+func configurePrivateNetwork(client *sshpkg.Client, node config.NodeConfig, cfg *config.Config) error {
+	if node.PrivateIP == "" {
+		return nil
+	}
+	// Extract prefix length from network subnet (e.g. "10.0.0.0/24" → "24")
+	prefix := "24"
+	if cfg.Network.Subnet != "" {
+		parts := strings.SplitN(cfg.Network.Subnet, "/", 2)
+		if len(parts) == 2 {
+			prefix = parts[1]
+		}
+	}
+	script := fmt.Sprintf(`
+# Hetzner private network interface is ens10 on most images; fallback to others
+IFACE=""
+for candidate in ens10 enp7s0 eth1; do
+  if ip link show "$candidate" &>/dev/null 2>&1; then
+    IFACE="$candidate"
+    break
+  fi
+done
+
+# Last resort: any interface that isn't eth0, lo, or virtual
+if [ -z "$IFACE" ]; then
+  IFACE=$(ip link show | awk -F': ' '/^[0-9]+: /{print $2}' \
+    | sed 's/@.*//' \
+    | grep -vE '^(eth0|lo|docker|veth|br-|vxlan|overlay|wg)' | head -1)
+fi
+
+if [ -z "$IFACE" ]; then
+  echo "Private network interface not found, skipping"
+  exit 0
+fi
+
+echo "Configuring private network on interface: $IFACE"
+ip link set "$IFACE" up
+ip addr show "$IFACE" | grep -q '%s' || ip addr add %s/%s dev "$IFACE"
+
+# Persist via netplan (Ubuntu 18.04+)
+cat > /etc/netplan/60-hetzner-private.yaml << NETPLAN
+network:
+  version: 2
+  ethernets:
+    $IFACE:
+      addresses:
+        - %s/%s
+      mtu: 1450
+NETPLAN
+chmod 600 /etc/netplan/60-hetzner-private.yaml
+netplan apply 2>/dev/null || true
+
+# Wait for interface to be fully ready
+sleep 3
+`, node.PrivateIP, node.PrivateIP, prefix, node.PrivateIP, prefix)
 	_, err := client.Run(script)
 	return err
 }
@@ -68,7 +130,21 @@ systemctl start docker`
 }
 
 func createDataDirs(client *sshpkg.Client, _ config.NodeConfig, _ *config.Config) error {
-	script := `mkdir -p /opt/data /opt/backups /opt/configs /opt/stacks /opt/traefik/acme /opt/traefik/dynamic`
+	script := `mkdir -p /opt/data /opt/backups /opt/configs /opt/stacks /opt/traefik/acme /opt/traefik/dynamic /var/log/traefik`
+	_, err := client.Run(script)
+	return err
+}
+
+// disableDNSStubListener frees port 53 so CoreDNS can bind to it.
+// systemd-resolved's stub listener occupies 127.0.0.53:53 by default,
+// which conflicts with host-mode port publishing for CoreDNS.
+func disableDNSStubListener(client *sshpkg.Client) error {
+	script := `
+sed -i 's/#DNSStubListener=yes/DNSStubListener=no/' /etc/systemd/resolved.conf
+grep -q '^DNSStubListener=no' /etc/systemd/resolved.conf || echo 'DNSStubListener=no' >> /etc/systemd/resolved.conf
+systemctl restart systemd-resolved
+ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
+`
 	_, err := client.Run(script)
 	return err
 }
@@ -85,13 +161,20 @@ systemctl enable unattended-upgrades`
 }
 
 func InstallNetbird(client *sshpkg.Client, setupKey, managementURL string) error {
-	if setupKey == "" {
-		ui.Debug("Skipping NetBird install (no setup key)")
-		return nil
-	}
 	script := fmt.Sprintf(`curl -fsSL https://pkgs.netbird.io/install.sh | sh
 netbird up --setup-key '%s' --management-url '%s'`,
 		shellEscape(setupKey), shellEscape(managementURL))
+	_, err := client.Run(script)
+	return err
+}
+
+// HardenSSHtoVPN updates UFW to restrict SSH access to VPN subnet only.
+// Call this only after NetBird agents are confirmed connected.
+func HardenSSHtoVPN(client *sshpkg.Client, vpnSubnet, privateSubnet string) error {
+	script := fmt.Sprintf(`ufw delete allow 22/tcp 2>/dev/null || true
+ufw allow from %s to any port 22 proto tcp comment 'SSH via VPN'
+ufw allow from %s to any port 22 proto tcp comment 'SSH via private net'
+ufw reload`, vpnSubnet, privateSubnet)
 	_, err := client.Run(script)
 	return err
 }

@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   coredns:
-    image: coredns/coredns:1.11
+    image: coredns/coredns:1.11.1
     command: ["-conf", "/etc/coredns/Corefile"]
     ports:
       - target: 53
@@ -31,12 +31,7 @@ services:
           memory: 128M
         reservations:
           memory: 64M
-    healthcheck:
-      test: ["CMD", "dig", "@127.0.0.1", "-p", "53", "dns.internal", "+short"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
+    # CoreDNS distroless image has no shell/wget/dig — healthcheck removed
 
 networks:
   backend:

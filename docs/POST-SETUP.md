@@ -53,10 +53,35 @@ This covers everything in one record. Recommended if you control the domain.
 
 ## 2. NetBird VPN Setup
 
-1. Access the NetBird dashboard
-2. Create a setup key for your team
-3. Install NetBird client on developer laptops
-4. Connect using: `netbird up --setup-key <key>`
+NetBird dashboard `https://netbird.example.com` adresinde çalışır (kendi domain'inle değiştir).
+
+### İlk Kurulum
+
+1. DNS kaydını ekle: `netbird.example.com` → infra node public IP
+2. Tarayıcıdan aç: `https://netbird.example.com`
+3. İlk açılışta admin hesabı oluştur (single-account mode, OAuth gerekmez)
+4. **Setup Keys** → **Create Setup Key** → key'i kopyala
+5. `swarmforge.yml`'daki `netbird.setup_key` alanını güncelle
+
+### Client Kurulumu (laptop/sunucu)
+
+```bash
+# macOS
+brew install netbirdio/tap/netbird
+
+# Linux
+curl -fsSL https://pkgs.netbird.io/install.sh | sh
+
+# Bağlan
+netbird up --setup-key <setup-key> --management-url https://netbird.example.com
+```
+
+### Bağlantı Kontrolü
+
+```bash
+netbird status          # Bağlı peer'ları listeler
+ping 100.64.x.x         # Diğer peer'lara ping at
+```
 
 ## 3. Configure Internal DNS on Laptops
 

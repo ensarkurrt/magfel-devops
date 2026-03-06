@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -33,7 +34,7 @@ func init() {
 
 func runUp(cmd *cobra.Command, args []string) error {
 	c := mustLoadConfig()
-	totalSteps := 19
+	totalSteps := 21
 
 	// Validate config
 	ui.Step(1, totalSteps, "Validating configuration")
@@ -100,8 +101,21 @@ func runUp(cmd *cobra.Command, args []string) error {
 		sp.StopWithSuccess(fmt.Sprintf("Server %s created (IP: %s)", node.Name, ip))
 	}
 
+	// Create and apply Hetzner Cloud Firewall
+	ui.Step(5, totalSteps, "Creating cloud firewall")
+	fwName := hc.FirewallName(c.Cluster.Name)
+	if err := hc.CreateFirewall(fwName, c.Firewall.Rules); err != nil {
+		return fmt.Errorf("creating firewall: %w", err)
+	}
+	for _, node := range c.Nodes {
+		if err := hc.ApplyFirewallToServer(fwName, node.Name); err != nil {
+			ui.Warn("Firewall apply for %s: %s", node.Name, err)
+		}
+	}
+	ui.Success("Firewall %s ready (SSH, HTTP, HTTPS, NetBird)", fwName)
+
 	// Attach to network with private IPs
-	ui.Step(5, totalSteps, "Assigning private IPs")
+	ui.Step(6, totalSteps, "Assigning private IPs")
 	for _, node := range c.Nodes {
 		if err := hc.AttachToNetwork(node.Name, c.Network.Name, node.PrivateIP); err != nil {
 			ui.Warn("Network attach for %s: %s", node.Name, err)
@@ -110,7 +124,7 @@ func runUp(cmd *cobra.Command, args []string) error {
 	ui.Success("Private IPs assigned")
 
 	// Wait for SSH
-	ui.Step(6, totalSteps, "Waiting for SSH connections")
+	ui.Step(7, totalSteps, "Waiting for SSH connections")
 	for name, ip := range serverIPs {
 		sp := ui.NewSpinner(fmt.Sprintf("Waiting for %s (%s)...", name, ip))
 		sp.Start()
@@ -122,7 +136,7 @@ func runUp(cmd *cobra.Command, args []string) error {
 	}
 
 	// Setup each node
-	ui.Step(7, totalSteps, "Setting up nodes (packages, Docker, security)")
+	ui.Step(8, totalSteps, "Setting up nodes (packages, Docker, security)")
 	clients := make(map[string]*sshpkg.Client)
 	for _, node := range c.Nodes {
 		ip := serverIPs[node.Name]
@@ -141,15 +155,6 @@ func runUp(cmd *cobra.Command, args []string) error {
 		}
 		sp.StopWithSuccess(fmt.Sprintf("Node %s configured", node.Name))
 	}
-
-	// Install NetBird
-	ui.Step(8, totalSteps, "Installing NetBird agent")
-	for _, node := range c.Nodes {
-		if err := security.InstallNetbird(clients[node.Name], c.Netbird.SetupKey, c.Netbird.ManagementURL); err != nil {
-			ui.Warn("NetBird on %s: %s", node.Name, err)
-		}
-	}
-	ui.Success("NetBird configured")
 
 	// Swarm init
 	ui.Step(9, totalSteps, "Initializing Docker Swarm")
@@ -188,11 +193,13 @@ func runUp(cmd *cobra.Command, args []string) error {
 	// Docker secrets
 	ui.Step(12, totalSteps, "Creating Docker secrets")
 	secrets := map[string]string{
-		"pg_password":       "",
-		"pg_repl_password":  "",
-		"redis_password":    "",
-		"minio_root_password": "",
-		"registry_password": "",
+		"pg_password":          "",
+		"pg_repl_password":     "",
+		"redis_password":       "",
+		"minio_root_password":  "",
+		"registry_password":    "",
+		"netbird_db_password":  "",
+		"netbird_relay_secret": "",
 	}
 	if err := swarm.EnsureSecrets(managerClient, secrets); err != nil {
 		return fmt.Errorf("creating secrets: %w", err)
@@ -216,9 +223,20 @@ func runUp(cmd *cobra.Command, args []string) error {
 	}
 	ui.Success("Stack files copied")
 
-	// Deploy stacks
-	ui.Step(15, totalSteps, "Deploying %d stacks", len(deploy.DeploymentOrder))
-	for i, stackName := range deploy.DeploymentOrder {
+	// Deploy stacks — Phase 1: up to and including infra-netbird
+	ui.Step(15, totalSteps, "Deploying infrastructure stacks")
+	netbirdIdx := -1
+	for i, s := range deploy.DeploymentOrder {
+		if s == "infra-netbird" {
+			netbirdIdx = i
+			break
+		}
+	}
+	phase1End := len(deploy.DeploymentOrder)
+	if netbirdIdx >= 0 {
+		phase1End = netbirdIdx + 1
+	}
+	for i, stackName := range deploy.DeploymentOrder[:phase1End] {
 		sp := ui.NewSpinner(fmt.Sprintf("[%d/%d] Deploying %s...", i+1, len(deploy.DeploymentOrder), stackName))
 		sp.Start()
 		if err := deploy.DeployStack(managerClient, stackName, deploy.ComposePath(stackName)); err != nil {
@@ -227,17 +245,72 @@ func runUp(cmd *cobra.Command, args []string) error {
 			continue
 		}
 		sp.StopWithSuccess(fmt.Sprintf("Stack %s deployed", stackName))
-		// Brief pause between deployments
 		time.Sleep(2 * time.Second)
 	}
 
+	// NetBird setup — prompt for setup key
+	ui.Step(16, totalSteps, "Configuring NetBird VPN")
+	managementURL := fmt.Sprintf("https://netbird.%s", c.Domains.Base)
+	setupKey := c.Netbird.SetupKey
+	if setupKey == "" {
+		fmt.Println()
+		ui.Info("NetBird management server is starting at: %s", managementURL)
+		ui.Info("Waiting 20 seconds for it to come up...")
+		time.Sleep(20 * time.Second)
+		fmt.Println()
+		ui.Info("Steps:")
+		ui.Info("  1. Open %s in your browser", managementURL)
+		ui.Info("  2. Create admin account (first visit)")
+		ui.Info("  3. Go to Setup Keys → Create Setup Key")
+		ui.Info("  4. Paste the key below")
+		fmt.Println()
+		fmt.Print("  NetBird Setup Key: ")
+		reader := bufio.NewReader(os.Stdin)
+		input, _ := reader.ReadString('\n')
+		setupKey = strings.TrimSpace(input)
+	}
+	if setupKey != "" {
+		for _, node := range c.Nodes {
+			if err := security.InstallNetbird(clients[node.Name], setupKey, managementURL); err != nil {
+				ui.Warn("NetBird on %s: %s", node.Name, err)
+			}
+		}
+		ui.Success("NetBird agents connected")
+		// Harden SSH to VPN-only now that agents are up
+		ui.Info("Hardening SSH — restricting to VPN subnet only...")
+		for _, node := range c.Nodes {
+			if err := security.HardenSSHtoVPN(clients[node.Name], c.Netbird.Subnet, c.Network.Subnet); err != nil {
+				ui.Warn("SSH hardening on %s: %s", node.Name, err)
+			}
+		}
+		ui.Success("SSH restricted to VPN (%s)", c.Netbird.Subnet)
+	} else {
+		ui.Warn("No setup key provided — NetBird agents not configured. Run 'swarmforge up' again after setup.")
+	}
+
+	// Deploy stacks — Phase 2: remaining stacks
+	if netbirdIdx >= 0 && phase1End < len(deploy.DeploymentOrder) {
+		ui.Step(17, totalSteps, "Deploying remaining stacks")
+		for i, stackName := range deploy.DeploymentOrder[phase1End:] {
+			sp := ui.NewSpinner(fmt.Sprintf("[%d/%d] Deploying %s...", phase1End+i+1, len(deploy.DeploymentOrder), stackName))
+			sp.Start()
+			if err := deploy.DeployStack(managerClient, stackName, deploy.ComposePath(stackName)); err != nil {
+				sp.StopWithError(fmt.Sprintf("Failed to deploy %s: %s", stackName, err))
+				ui.Warn("Stack %s failed, continuing...", stackName)
+				continue
+			}
+			sp.StopWithSuccess(fmt.Sprintf("Stack %s deployed", stackName))
+			time.Sleep(2 * time.Second)
+		}
+	}
+
 	// Create additional databases
-	ui.Step(16, totalSteps, "Creating additional databases")
+	ui.Step(18, totalSteps, "Creating additional databases")
 	createAdditionalDatabases(managerClient, secrets)
 	ui.Success("Additional databases created")
 
 	// Registry login on all nodes
-	ui.Step(17, totalSteps, "Docker registry login on all nodes")
+	ui.Step(19, totalSteps, "Docker registry login on all nodes")
 	for _, node := range c.Nodes {
 		registryHost := c.Domains.Internal["registry"]
 		if registryHost == "" {
@@ -249,8 +322,7 @@ func runUp(cmd *cobra.Command, args []string) error {
 	}
 	ui.Success("Registry login configured")
 
-	// Backup cron
-	ui.Step(18, totalSteps, "Setting up backup cron jobs")
+	ui.Step(20, totalSteps, "Setting up backup cron jobs")
 	dataNode := c.GetNodeByLabel("role", "data")
 	if dataNode != nil {
 		_ = backup.SetupCron(clients[dataNode.Name], c)
@@ -258,7 +330,7 @@ func runUp(cmd *cobra.Command, args []string) error {
 	ui.Success("Backup cron configured")
 
 	// Health check
-	ui.Step(19, totalSteps, "Running health checks")
+	ui.Step(21, totalSteps, "Running health checks")
 	time.Sleep(10 * time.Second) // Wait for services to start
 	deploy.RunHealthChecks(clients)
 	deploy.CheckServiceReplicas(managerClient)
@@ -304,16 +376,25 @@ func prepareAndCopyConfigs(clients map[string]*sshpkg.Client, cfg *cfgpkg.Config
 
 	// Deploy traefik dynamic config to infra node
 	if infraNode != nil {
-		_, _ = clients[infraNode.Name].Run("mkdir -p /opt/traefik/dynamic /opt/traefik/acme")
-		copyLocalFileToNode(clients[infraNode.Name], "traefik/dynamic/routes.yml", "/opt/traefik/dynamic/routes.yml")
+		_, _ = clients[infraNode.Name].Run("mkdir -p /var/log/traefik /opt/traefik/dynamic /opt/traefik/acme /opt/configs/netbird /opt/data/portainer")
+		copyLocalFileToNodeTemplated(clients[infraNode.Name], "traefik/dynamic/routes.yml", "/opt/traefik/dynamic/routes.yml", cfg)
 		copyLocalFileToNode(clients[infraNode.Name], "traefik/dynamic/middlewares.yml", "/opt/traefik/dynamic/middlewares.yml")
+		copyNetbirdConfig(clients[infraNode.Name], cfg, secrets["netbird_db_password"], secrets["netbird_relay_secret"])
 	}
 
-	// Deploy redis.conf to data node
+	// Deploy redis.conf and registry htpasswd to data node
 	dataNode := cfg.GetNodeByLabel("role", "data")
 	if dataNode != nil {
-		_, _ = clients[dataNode.Name].Run("mkdir -p /opt/configs/redis /opt/configs/registry /opt/data/redis /opt/data/postgresql /opt/data/minio /opt/data/portainer /opt/data/registry")
+		_, _ = clients[dataNode.Name].Run("mkdir -p /opt/configs/redis /opt/configs/registry /opt/data/redis /opt/data/postgresql /opt/data/minio /opt/data/registry")
 		copyLocalFileToNode(clients[dataNode.Name], "stacks/data-redis/redis.conf", "/opt/configs/redis/redis.conf")
+		// Generate registry htpasswd (bcrypt) — write password via file to avoid shell injection
+		registryUser := cfg.Services.Registry.User
+		registryPass := secrets["registry_password"]
+		_ = clients[dataNode.Name].WriteContent("/tmp/registry-pass", registryPass)
+		_, _ = clients[dataNode.Name].Run(fmt.Sprintf(
+			"htpasswd -Bbin '%s' < /tmp/registry-pass > /opt/configs/registry/htpasswd && rm -f /tmp/registry-pass",
+			registryUser,
+		))
 	}
 
 	// Deploy monitoring configs to tools node
@@ -343,6 +424,18 @@ func copyLocalFileToNode(client *sshpkg.Client, localPath, remotePath string) {
 		return
 	}
 	if err := client.WriteContent(remotePath, string(data)); err != nil {
+		ui.Warn("Cannot write %s: %s", remotePath, err)
+	}
+}
+
+func copyLocalFileToNodeTemplated(client *sshpkg.Client, localPath, remotePath string, cfg *cfgpkg.Config) {
+	data, err := os.ReadFile(localPath)
+	if err != nil {
+		ui.Warn("Cannot read %s: %s", localPath, err)
+		return
+	}
+	content := strings.ReplaceAll(string(data), "example.com", cfg.Domains.Base)
+	if err := client.WriteContent(remotePath, content); err != nil {
 		ui.Warn("Cannot write %s: %s", remotePath, err)
 	}
 }
@@ -378,22 +471,49 @@ func copyStackFiles(managerClient *sshpkg.Client) error {
 }
 
 func createAdditionalDatabases(client *sshpkg.Client, secrets map[string]string) {
-	_ = secrets
 	dbs := []struct {
 		name string
 		user string
+		pass string
 	}{
-		{"umami", "umami"},
-		{"twenty", "twenty"},
+		{"umami", "umami", swarm.GeneratePassword(24)},
+		{"twenty", "twenty", swarm.GeneratePassword(24)},
+		{"netbird", "netbird", secrets["netbird_db_password"]},
 	}
 
 	for _, db := range dbs {
-		cmd := fmt.Sprintf(`docker exec $(docker ps -q -f name=data-postgresql_postgresql) \
-		psql -U admin -c "SELECT 1 FROM pg_database WHERE datname='%s'" | grep -q 1 || \
-		docker exec $(docker ps -q -f name=data-postgresql_postgresql) \
-		psql -U admin -c "CREATE DATABASE %s; CREATE USER %s WITH PASSWORD '%s'; GRANT ALL PRIVILEGES ON DATABASE %s TO %s;"`,
-			db.name, db.name, db.user, swarm.GeneratePassword(24), db.name, db.user)
+		// CREATE DATABASE cannot run in a transaction block — run each statement separately.
+		// PG 15+: public schema no longer world-writable, explicit GRANT required.
+		cmd := fmt.Sprintf(`PG=$(docker ps -q -f name=data-postgresql_postgresql)
+docker exec "$PG" psql -U admin -d postgres -c "SELECT 1 FROM pg_database WHERE datname='%s'" | grep -q 1 || \
+  docker exec "$PG" psql -U admin -d postgres -c "CREATE DATABASE %s"
+docker exec "$PG" psql -U admin -d postgres -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='%s') THEN CREATE USER %s WITH PASSWORD '%s'; END IF; END \$\$"
+docker exec "$PG" psql -U admin -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE %s TO %s"
+docker exec "$PG" psql -U admin -d %s -c "GRANT ALL ON SCHEMA public TO %s; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO %s"`,
+			db.name,
+			db.name,
+			db.user, db.user, db.pass,
+			db.name, db.user,
+			db.name, db.user, db.user)
 		_, _ = client.Run(cmd)
+	}
+}
+
+// copyNetbirdConfig reads the config.yaml template and substitutes both
+// the domain placeholder and the DB password before writing to the server.
+func copyNetbirdConfig(client *sshpkg.Client, cfg *cfgpkg.Config, dbPassword, relaySecret string) {
+	data, err := os.ReadFile("stacks/infra-netbird/config.yaml")
+	if err != nil {
+		ui.Warn("Cannot read stacks/infra-netbird/config.yaml: %s", err)
+		return
+	}
+	encryptionKey := swarm.GeneratePassword(32)
+	content := strings.ReplaceAll(string(data), "example.com", cfg.Domains.Base)
+	content = strings.ReplaceAll(content, "NETBIRD_DB_PASSWORD", dbPassword)
+	content = strings.ReplaceAll(content, "NETBIRD_RELAY_SECRET", relaySecret)
+	content = strings.ReplaceAll(content, `encryptionKey: ""`, `encryptionKey: "`+encryptionKey+`"`)
+	if err := client.WriteContent("/opt/configs/netbird/config.yaml", content); err != nil {
+		ui.Warn("Cannot write netbird config.yaml: %s", err)
 	}
 }
 

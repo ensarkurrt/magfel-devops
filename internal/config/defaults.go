@@ -16,10 +16,10 @@ func DefaultConfig() *Config {
 			Subnet: "10.0.0.0/24",
 		},
 		Nodes: []NodeConfig{
-			{Name: "swarm-infra", Type: "cx22", Location: "fsn1", PrivateIP: "10.0.0.1", Role: "manager", Labels: map[string]string{"infra": "true", "role": "infra"}},
-			{Name: "swarm-data", Type: "cx32", Location: "fsn1", PrivateIP: "10.0.0.2", Role: "worker", Labels: map[string]string{"data": "true", "role": "data"}},
-			{Name: "swarm-apps", Type: "cx32", Location: "fsn1", PrivateIP: "10.0.0.3", Role: "worker", Labels: map[string]string{"app": "true", "role": "app"}},
-			{Name: "swarm-tools", Type: "cx32", Location: "fsn1", PrivateIP: "10.0.0.4", Role: "worker", Labels: map[string]string{"tools": "true", "role": "tools"}},
+			{Name: "swarm-infra", Type: "cx23", Location: "nbg1", PrivateIP: "10.0.0.2", Role: "manager", Labels: map[string]string{"infra": "true", "role": "infra"}},
+			{Name: "swarm-data", Type: "cpx32", Location: "nbg1", PrivateIP: "10.0.0.3", Role: "worker", Labels: map[string]string{"data": "true", "role": "data"}},
+			{Name: "swarm-apps", Type: "cx33", Location: "nbg1", PrivateIP: "10.0.0.4", Role: "worker", Labels: map[string]string{"app": "true", "role": "app"}},
+			{Name: "swarm-tools", Type: "cx33", Location: "nbg1", PrivateIP: "10.0.0.5", Role: "worker", Labels: map[string]string{"tools": "true", "role": "tools"}},
 		},
 		Domains: DomainsConfig{
 			Base:      "example.com",
@@ -73,10 +73,20 @@ func DefaultConfig() *Config {
 		Backup: BackupConfig{
 			RetentionDays: 14,
 			LocalDir:      "/opt/backups",
-			Schedule:      "0 3 * * *",
+			Schedule:      "0 1 * * *",
 			StorageBox: StorageBoxConfig{
 				Port: 23,
 				Path: "/backups/swarm",
+			},
+		},
+		Firewall: FirewallConfig{
+			Rules: []FirewallRuleConfig{
+				{Description: "Allow ICMP (ping)", Protocol: "icmp", SourceIPs: []string{"0.0.0.0/0", "::/0"}},
+				{Description: "Allow SSH", Protocol: "tcp", Port: "22", SourceIPs: []string{"0.0.0.0/0", "::/0"}},
+				{Description: "Allow HTTP (Traefik)", Protocol: "tcp", Port: "80", SourceIPs: []string{"0.0.0.0/0", "::/0"}},
+				{Description: "Allow HTTPS (Traefik)", Protocol: "tcp", Port: "443", SourceIPs: []string{"0.0.0.0/0", "::/0"}},
+				{Description: "Allow NetBird Signal", Protocol: "tcp", Port: "10000", SourceIPs: []string{"0.0.0.0/0", "::/0"}},
+				{Description: "Allow NetBird TURN", Protocol: "udp", Port: "3478", SourceIPs: []string{"0.0.0.0/0", "::/0"}},
 			},
 		},
 	}

@@ -14,41 +14,41 @@ network:
   subnet: "10.0.0.0/24"
 
 nodes:
-  # Node-1 — Infra (CX22: 2 vCPU, 4GB RAM, 40GB) ~€3.49/mo
+  # Node-1 — Infra (CX23: 2 vCPU, 4GB RAM, 40GB) ~€3.49/mo
   - name: "swarm-infra"
-    type: "cx22"
-    location: "fsn1"
-    private_ip: "10.0.0.1"
+    type: "cx23"
+    location: "nbg1"
+    private_ip: "10.0.0.2"
     role: "manager"
     labels:
       infra: "true"
       role: "infra"
 
-  # Node-2 — Data (CPX31: 4 vCPU, 8GB RAM, 160GB) ~€10.99/mo
+  # Node-2 — Data (CPX32: 4 vCPU, 8GB RAM, 160GB) ~€10.99/mo
   - name: "swarm-data"
-    type: "cpx31"
-    location: "fsn1"
-    private_ip: "10.0.0.2"
+    type: "cpx32"
+    location: "nbg1"
+    private_ip: "10.0.0.3"
     role: "worker"
     labels:
       data: "true"
       role: "data"
 
-  # Node-3 — Apps (CX32: 4 vCPU, 8GB RAM, 80GB) ~€5.49/mo
+  # Node-3 — Apps (CX33: 4 vCPU, 8GB RAM, 80GB) ~€5.49/mo
   - name: "swarm-apps"
-    type: "cx32"
-    location: "fsn1"
-    private_ip: "10.0.0.3"
+    type: "cx33"
+    location: "nbg1"
+    private_ip: "10.0.0.4"
     role: "worker"
     labels:
       app: "true"
       role: "app"
 
-  # Node-4 — Tools (CX32: 4 vCPU, 8GB RAM, 80GB) ~€5.49/mo
+  # Node-4 — Tools (CX33: 4 vCPU, 8GB RAM, 80GB) ~€5.49/mo
   - name: "swarm-tools"
-    type: "cx32"
-    location: "fsn1"
-    private_ip: "10.0.0.4"
+    type: "cx33"
+    location: "nbg1"
+    private_ip: "10.0.0.5"
     role: "worker"
     labels:
       tools: "true"
@@ -127,8 +127,7 @@ services:
 netbird:
   domain: "netbird.example.com"
   subnet: "100.64.0.0/10"
-  setup_key: ""
-  management_url: ""
+  setup_key: ""  # Leave empty — swarmforge up will prompt you interactively
 
 slack:
   webhook_url: ""
@@ -137,9 +136,36 @@ slack:
 backup:
   retention_days: 14
   local_dir: "/opt/backups"
-  schedule: "0 3 * * *"
+  schedule: "0 1 * * *"
   storage_box:
     user: ""
     host: ""
     port: 23
     path: "/backups/swarm"
+
+firewall:
+  rules:
+    # Inbound rules — all other inbound traffic is dropped
+    - description: "Allow ICMP (ping)"
+      protocol: icmp
+      source_ips: ["0.0.0.0/0", "::/0"]
+    - description: "Allow SSH"
+      protocol: tcp
+      port: "22"
+      source_ips: ["0.0.0.0/0", "::/0"]
+    - description: "Allow HTTP (Traefik)"
+      protocol: tcp
+      port: "80"
+      source_ips: ["0.0.0.0/0", "::/0"]
+    - description: "Allow HTTPS (Traefik)"
+      protocol: tcp
+      port: "443"
+      source_ips: ["0.0.0.0/0", "::/0"]
+    - description: "Allow NetBird Signal"
+      protocol: tcp
+      port: "10000"
+      source_ips: ["0.0.0.0/0", "::/0"]
+    - description: "Allow NetBird TURN"
+      protocol: udp
+      port: "3478"
+      source_ips: ["0.0.0.0/0", "::/0"]

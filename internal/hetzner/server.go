@@ -34,8 +34,8 @@ func (c *Client) CreateServer(name, serverType, location, image, sshKeyName, net
 		"--location", location,
 		"--image", image,
 		"--ssh-key", sshKeyName,
-		"--network", networkName,
 	}
+	_ = networkName // network attachment with specific IP is done separately in AttachToNetwork
 
 	out, err := c.Run(args...)
 	if err != nil {

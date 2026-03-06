@@ -3,11 +3,24 @@ package swarm
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	sshpkg "github.com/ensarkurrt/swarmforge/internal/ssh"
 )
 
 func SetNodeLabels(client *sshpkg.Client, nodeName string, labels map[string]string) error {
+	// Wait for node to be visible in swarm (propagation delay after join)
+	const maxAttempts = 5
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		if NodeExists(client, nodeName) {
+			break
+		}
+		if attempt == maxAttempts {
+			return fmt.Errorf("node %s not found in swarm after %d attempts", nodeName, maxAttempts)
+		}
+		time.Sleep(5 * time.Second)
+	}
+
 	for key, value := range labels {
 		_, err := client.Run(fmt.Sprintf("docker node update --label-add %s=%s %s", key, value, nodeName))
 		if err != nil {

@@ -1,0 +1,27 @@
+# NetBird Server Configuration
+# Template vars replaced at deploy time:
+#   "example.com"         → cfg.Domains.Base
+#   "NETBIRD_DB_PASSWORD" → secrets["netbird_db_password"]
+
+server:
+  exposedAddress: "https://netbird.example.com:443"
+  listenAddress: ":80"
+  authSecret: "NETBIRD_RELAY_SECRET"
+  stunPorts:
+    - 3478
+  logLevel: "info"
+  dataDir: "/var/lib/netbird"
+
+  auth:
+    issuer: "https://netbird.example.com/oauth2"
+    signKeyRefreshEnabled: false
+    dashboardRedirectURIs:
+      - "https://netbird.example.com/nb-auth"
+      - "https://netbird.example.com/nb-silent-auth"
+    cliRedirectURIs:
+      - "http://localhost:53000/"
+
+  store:
+    engine: postgres
+    dsn: "host=data-postgresql_postgresql user=netbird password=NETBIRD_DB_PASSWORD dbname=netbird port=5432 sslmode=disable"
+    encryptionKey: ""

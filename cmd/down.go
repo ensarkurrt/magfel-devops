@@ -41,6 +41,16 @@ var downCmd = &cobra.Command{
 
 		hc := hetzner.NewClient(c.Hetzner.Token, c.Cluster.Name)
 
+		// Delete firewall
+		fwName := hc.FirewallName(c.Cluster.Name)
+		fwSp := ui.NewSpinner(fmt.Sprintf("Deleting firewall %s...", fwName))
+		fwSp.Start()
+		if err := hc.DeleteFirewall(fwName); err != nil {
+			fwSp.StopWithError(fmt.Sprintf("Failed to delete firewall: %s", err))
+		} else {
+			fwSp.StopWithSuccess("Firewall deleted")
+		}
+
 		// Delete servers
 		for _, node := range c.Nodes {
 			sp := ui.NewSpinner(fmt.Sprintf("Deleting server %s...", node.Name))

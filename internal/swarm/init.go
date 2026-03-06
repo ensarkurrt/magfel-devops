@@ -3,6 +3,7 @@ package swarm
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	sshpkg "github.com/ensarkurrt/swarmforge/internal/ssh"
 )
@@ -52,12 +53,27 @@ func Join(client *sshpkg.Client, token, managerIP string) error {
 		return nil
 	}
 
-	_, err := client.Run(fmt.Sprintf("docker swarm join --token %s %s:2377", token, managerIP))
-	if err != nil {
+	const maxAttempts = 3
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		_, err := client.Run(fmt.Sprintf("docker swarm join --token %s %s:2377", token, managerIP))
+		if err == nil {
+			return nil
+		}
 		if strings.Contains(err.Error(), "already part of a swarm") {
 			return nil
 		}
-		return fmt.Errorf("swarm join: %w", err)
+		// Docker returns exit 1 on timeout but continues in background.
+		// Check if the node actually joined despite the error.
+		time.Sleep(5 * time.Second)
+		info, _ := client.Run("docker info --format '{{.Swarm.LocalNodeState}}'")
+		if strings.TrimSpace(info) == "active" {
+			return nil
+		}
+		if attempt < maxAttempts {
+			time.Sleep(10 * time.Second)
+		} else {
+			return fmt.Errorf("swarm join: %w", err)
+		}
 	}
 	return nil
 }

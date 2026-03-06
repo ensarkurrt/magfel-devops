@@ -26,12 +26,10 @@ func generateUFWRules(node config.NodeConfig, cfg *config.Config) []string {
 	privateNet := cfg.Network.Subnet
 	vpnNet := cfg.Netbird.Subnet
 
-	// Common rules for all nodes
-	if vpnNet != "" {
-		rules = append(rules, fmt.Sprintf("ufw allow from %s to any port 22 proto tcp comment 'SSH via VPN'", vpnNet))
-	} else {
-		rules = append(rules, "ufw allow 22/tcp comment 'SSH'")
-	}
+	// SSH — always open from everywhere.
+	// Security is enforced by: key-only auth (no passwords) + fail2ban + Hetzner Cloud Firewall.
+	// Restricting SSH to VPN-only should be done manually after NetBird is confirmed working.
+	rules = append(rules, "ufw allow 22/tcp comment 'SSH'")
 
 	// Swarm ports — private network only
 	rules = append(rules,

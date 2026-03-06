@@ -8,10 +8,10 @@ SwarmForge provisions a 4-node Docker Swarm cluster on Hetzner Cloud with a comp
 
 | Node | Role | Type | Specs | Price | Services |
 |------|------|------|-------|-------|----------|
-| swarm-infra | Manager | CX22 | 2 vCPU, 4 GB RAM, 40 GB disk | ~€3.49/ay | Traefik, CoreDNS, Portainer, Registry, NetBird |
-| swarm-data | Worker | CPX31 | 4 vCPU, 8 GB RAM, 160 GB disk | ~€10.99/ay | PostgreSQL, Redis, MinIO |
-| swarm-apps | Worker | CX32 | 4 vCPU, 8 GB RAM, 80 GB disk | ~€5.49/ay | Application workloads (app-gowa), CI runners |
-| swarm-tools | Worker | CX32 | 4 vCPU, 8 GB RAM, 80 GB disk | ~€5.49/ay | Prometheus, Grafana, Loki, Alertmanager, Umami, OpenStatus, Twenty |
+| swarm-infra | Manager | CX23 | 2 vCPU, 4 GB RAM, 40 GB disk | ~€3.49/ay | Traefik, CoreDNS, Portainer, Registry, NetBird |
+| swarm-data | Worker | CPX32 | 4 vCPU, 8 GB RAM, 160 GB disk | ~€10.99/ay | PostgreSQL, Redis, MinIO |
+| swarm-apps | Worker | CX33 | 4 vCPU, 8 GB RAM, 80 GB disk | ~€5.49/ay | Application workloads (app-gowa), CI runners |
+| swarm-tools | Worker | CX33 | 4 vCPU, 8 GB RAM, 80 GB disk | ~€5.49/ay | Prometheus, Grafana, Loki, Alertmanager, Umami, OpenStatus, Twenty |
 
 **Toplam:** 14 vCPU, 28 GB RAM, 360 GB disk — ~€25.46/ay
 

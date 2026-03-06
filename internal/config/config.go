@@ -20,6 +20,7 @@ type Config struct {
 	Netbird  NetbirdConfig  `yaml:"netbird"`
 	Slack    SlackConfig    `yaml:"slack"`
 	Backup   BackupConfig   `yaml:"backup"`
+	Firewall FirewallConfig `yaml:"firewall"`
 }
 
 type ClusterConfig struct {
@@ -93,10 +94,9 @@ type LokiConfig struct {
 }
 
 type NetbirdConfig struct {
-	Domain        string `yaml:"domain"`
-	Subnet        string `yaml:"subnet"`
-	SetupKey      string `yaml:"setup_key"`
-	ManagementURL string `yaml:"management_url"`
+	Domain   string `yaml:"domain"`
+	Subnet   string `yaml:"subnet"`
+	SetupKey string `yaml:"setup_key"`
 }
 
 type SlackConfig struct {
@@ -116,6 +116,17 @@ type StorageBoxConfig struct {
 	Host string `yaml:"host"`
 	Port int    `yaml:"port"`
 	Path string `yaml:"path"`
+}
+
+type FirewallConfig struct {
+	Rules []FirewallRuleConfig `yaml:"rules"`
+}
+
+type FirewallRuleConfig struct {
+	Description string `yaml:"description"`
+	Protocol    string `yaml:"protocol"`
+	Port        string `yaml:"port,omitempty"`
+	SourceIPs   []string `yaml:"source_ips"`
 }
 
 func Load(path string) (*Config, error) {

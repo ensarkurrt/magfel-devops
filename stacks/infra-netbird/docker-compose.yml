@@ -1,38 +1,18 @@
 version: "3.8"
 
 services:
-  dashboard:
-    image: netbirdio/dashboard:latest
+  netbird:
+    image: netbirdio/netbird-server:latest
     environment:
-      NETBIRD_MGMT_API_ENDPOINT: "https://${NETBIRD_DOMAIN}:443"
-      NETBIRD_MGMT_GRPC_API_ENDPOINT: "https://${NETBIRD_DOMAIN}:443"
-      AUTH_SUPPORTED_SCOPES: "openid profile email"
-      NETBIRD_TOKEN_SOURCE: "idToken"
-    networks:
-      - backend
-    deploy:
-      replicas: 1
-      placement:
-        constraints:
-          - node.labels.infra == true
-      restart_policy:
-        condition: on-failure
-        max_attempts: 10
-        window: 60s
-      resources:
-        limits:
-          memory: 256M
-        reservations:
-          memory: 128M
-
-  management:
-    image: netbirdio/management:latest
-    command:
-      - "--port=443"
-      - "--log-level=info"
-      - "--single-account-mode-domain=${NETBIRD_DOMAIN}"
+      NETBIRD_DOMAIN: "netbird.example.com"
+      NETBIRD_MGMT_SINGLE_ACCOUNT_MODE_DOMAIN: "netbird.example.com"
+      NB_STORE_ENGINE: "postgres"
+      NB_STORE_ENGINE_POSTGRES_DSN: "host=data-postgresql_postgresql user=netbird password=NETBIRD_DB_PASSWORD dbname=netbird port=5432 sslmode=disable"
     volumes:
-      - /opt/data/netbird/management:/var/lib/netbird
+      - /opt/data/netbird:/var/lib/netbird
+      - /opt/configs/netbird/config.yaml:/etc/netbird/config.yaml:ro
+    ports:
+      - "3478:3478/udp"  # STUN/TURN — UDP proxy'lenemez, doğrudan açılmalı
     networks:
       - backend
     deploy:
@@ -50,39 +30,19 @@ services:
         reservations:
           memory: 256M
 
-  signal:
-    image: netbirdio/signal:latest
-    ports:
-      - "10000:80"
-    networks:
-      - backend
-    deploy:
-      replicas: 1
-      placement:
-        constraints:
-          - node.labels.infra == true
-      restart_policy:
-        condition: on-failure
-        max_attempts: 10
-        window: 60s
-      resources:
-        limits:
-          memory: 256M
-        reservations:
-          memory: 128M
-
-  coturn:
-    image: coturn/coturn:latest
-    command:
-      - "--listening-port=3478"
-      - "--min-port=49152"
-      - "--max-port=65535"
-      - "--fingerprint"
-      - "--lt-cred-mech"
-      - "--no-software-attribute"
-    ports:
-      - "3478:3478/udp"
-      - "3478:3478/tcp"
+  dashboard:
+    image: netbirdio/dashboard:latest
+    environment:
+      NETBIRD_MGMT_API_ENDPOINT: "https://netbird.example.com"
+      NETBIRD_MGMT_GRPC_API_ENDPOINT: "https://netbird.example.com"
+      AUTH_AUDIENCE: "netbird-dashboard"
+      AUTH_CLIENT_ID: "netbird-dashboard"
+      AUTH_AUTHORITY: "https://netbird.example.com/oauth2"
+      AUTH_SUPPORTED_SCOPES: "openid profile email"
+      AUTH_REDIRECT_URI: "/nb-auth"
+      AUTH_SILENT_REDIRECT_URI: "/nb-silent-auth"
+      USE_AUTH0: "false"
+      LETSENCRYPT_DOMAIN: "none"
     networks:
       - backend
     deploy:
