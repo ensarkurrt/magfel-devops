@@ -13,7 +13,7 @@ services:
       - /opt/data/grafana:/var/lib/grafana
       - /opt/configs/grafana/provisioning:/etc/grafana/provisioning:ro
     networks:
-      - backend
+      - swarm_network
     deploy:
       replicas: 1
       placement:
@@ -36,5 +36,5 @@ services:
       start_period: 30s
 
 networks:
-  backend:
+  swarm_network:
     external: true

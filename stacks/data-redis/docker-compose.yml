@@ -12,7 +12,7 @@ services:
       - /opt/data/redis:/data
       - /opt/configs/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
     networks:
-      - backend
+      - swarm_network
     deploy:
       replicas: 1
       placement:
@@ -39,5 +39,5 @@ secrets:
     external: true
 
 networks:
-  backend:
+  swarm_network:
     external: true

@@ -1,4 +1,8 @@
 #cloud-config
+# ═══════════════════════════════════════════════════════════════════
+# Phase 1: Open Setup — UFW KAPALI, tüm portlar erişilebilir
+# Phase 2: Lockdown GitHub Action ile UFW + Hetzner FW aktif edilir
+# ═══════════════════════════════════════════════════════════════════
 
 package_update: true
 package_upgrade: true
@@ -17,7 +21,7 @@ packages:
   - ncdu
   - iotop
 
-# ─── SSH Hardening ───────────────────────────────────────────────────
+# ─── Config Files ────────────────────────────────────────────────────
 write_files:
   - path: /etc/ssh/sshd_config.d/99-hardening.conf
     content: |
@@ -41,7 +45,6 @@ write_files:
 
   - path: /etc/sysctl.d/99-swarm-tuning.conf
     content: |
-      # TCP tuning
       net.core.somaxconn = 65535
       net.ipv4.tcp_max_syn_backlog = 65535
       net.ipv4.tcp_tw_reuse = 1
@@ -49,10 +52,8 @@ write_files:
       net.ipv4.tcp_keepalive_time = 300
       net.ipv4.tcp_keepalive_intvl = 30
       net.ipv4.tcp_keepalive_probes = 5
-      # Memory tuning
       vm.swappiness = 10
       vm.overcommit_memory = 1
-      # File descriptors
       fs.file-max = 2097152
       fs.inotify.max_user_watches = 524288
 
@@ -63,51 +64,53 @@ write_files:
       root soft nofile 65535
       root hard nofile 65535
 
+  # UFW script — Phase 2'de çalıştırılacak (lockdown action)
+  - path: /opt/scripts/enable-ufw.sh
+    permissions: "0755"
+    content: |
+      #!/bin/bash
+      set -euo pipefail
+      ufw default deny incoming
+      ufw default allow outgoing
+      ufw allow 22/tcp                 # SSH
+      ufw allow 80/tcp                 # HTTP
+      ufw allow 443/tcp                # HTTPS
+      ufw allow 2377/tcp               # Swarm management
+      ufw allow 7946/tcp               # Swarm node communication
+      ufw allow 7946/udp               # Swarm node communication
+      ufw allow 4789/udp               # Overlay network
+      ufw allow from 10.0.0.0/24       # Private network
+      ufw allow from 100.64.0.0/10     # NetBird VPN mesh
+      ufw allow 51820/udp              # WireGuard (NetBird)
+      ufw --force enable
+      echo "UFW enabled."
+
 runcmd:
-  # ─── Sysctl apply ─────────────────────────────────────────────────
   - sysctl --system
 
-  # ─── Docker install ────────────────────────────────────────────────
+  # ─── Docker ────────────────────────────────────────────────────────
   - curl -fsSL https://get.docker.com | sh
-
-  # ─── Docker daemon config ──────────────────────────────────────────
   - mkdir -p /etc/docker
   - |
     cat > /etc/docker/daemon.json <<'DAEMON'
     {
       "log-driver": "json-file",
-      "log-opts": {
-        "max-size": "10m",
-        "max-file": "3"
-      },
+      "log-opts": { "max-size": "10m", "max-file": "3" },
       "storage-driver": "overlay2",
       "live-restore": true,
-      "default-address-pools": [
-        {"base": "172.17.0.0/12", "size": 24}
-      ]
+      "default-address-pools": [{"base": "172.17.0.0/12", "size": 24}]
     }
     DAEMON
   - systemctl restart docker
   - systemctl enable docker
 
-  # ─── UFW Firewall ──────────────────────────────────────────────────
-  - ufw default deny incoming
-  - ufw default allow outgoing
-  - ufw allow 22/tcp          # SSH
-  - ufw allow 80/tcp          # HTTP
-  - ufw allow 443/tcp         # HTTPS
-  - ufw allow 2377/tcp        # Swarm management
-  - ufw allow 7946/tcp        # Swarm node communication
-  - ufw allow 7946/udp        # Swarm node communication
-  - ufw allow 4789/udp        # Overlay network
-  - ufw allow from 10.0.0.0/24  # Private network full access
-  - ufw --force enable
-
-  # ─── Enable services ──────────────────────────────────────────────
+  # ─── Services (UFW KAPALI — Phase 2'de açılacak) ──────────────────
   - systemctl enable fail2ban
   - systemctl restart fail2ban
   - systemctl restart sshd
 
-  # ─── Stack directory ──────────────────────────────────────────────
+  # ─── Directories ──────────────────────────────────────────────────
   - mkdir -p /opt/stacks
   - mkdir -p /opt/backups
+  - mkdir -p /opt/configs/coredns
+  - mkdir -p /opt/scripts

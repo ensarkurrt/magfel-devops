@@ -46,6 +46,22 @@ variable "domain" {
   default     = "example.com"
 }
 
+# ─── Phase 2: Lockdown ──────────────────────────────────────────────
+# Boş bırakılırsa → Phase 1 (açık setup modu)
+# Dolu verilirse  → Phase 2 (NetBird kur, UFW aç, Hetzner FW kısıtla)
+#
+# Akış:
+#   1. terraform apply                                    → sunucular açık
+#   2. NetBird UI'dan setup key al
+#   3. terraform apply -var='netbird_setup_key=nb-xxx'    → kilitlenir
+#
+variable "netbird_setup_key" {
+  description = "NetBird setup key — boş ise lockdown YAPILMAZ, dolu ise tüm node'lar kilitlenir"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 # ─── Node Tanımları ──────────────────────────────────────────────────
 #
 # replicas = N → aynı tipten N adet node oluşturur

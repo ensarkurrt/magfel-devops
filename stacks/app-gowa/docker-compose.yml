@@ -11,7 +11,7 @@ services:
     volumes:
       - /opt/data/gowa:/app/storages
     networks:
-      - backend
+      - swarm_network
     deploy:
       replicas: 1
       placement:
@@ -39,5 +39,5 @@ services:
         max-file: "5"
 
 networks:
-  backend:
+  swarm_network:
     external: true

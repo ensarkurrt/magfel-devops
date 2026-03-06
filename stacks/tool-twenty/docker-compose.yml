@@ -20,7 +20,7 @@ services:
     volumes:
       - /opt/data/twenty:/app/.local-storage
     networks:
-      - backend
+      - swarm_network
     deploy:
       replicas: 1
       placement:
@@ -54,7 +54,7 @@ services:
     volumes:
       - /opt/data/twenty:/app/.local-storage
     networks:
-      - backend
+      - swarm_network
     deploy:
       replicas: 1
       placement:
@@ -71,5 +71,5 @@ services:
           memory: 512M
 
 networks:
-  backend:
+  swarm_network:
     external: true

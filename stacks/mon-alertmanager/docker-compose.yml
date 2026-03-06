@@ -12,7 +12,7 @@ services:
       - /opt/configs/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
       - /opt/data/alertmanager:/alertmanager
     networks:
-      - backend
+      - swarm_network
     deploy:
       replicas: 1
       placement:
@@ -35,5 +35,5 @@ services:
       start_period: 10s
 
 networks:
-  backend:
+  swarm_network:
     external: true

@@ -14,7 +14,7 @@ services:
       - /opt/configs/prometheus:/etc/prometheus:ro
       - /opt/data/prometheus:/prometheus
     networks:
-      - backend
+      - swarm_network
     deploy:
       replicas: 1
       placement:
@@ -44,7 +44,7 @@ services:
     volumes:
       - /:/host:ro,rslave
     networks:
-      - backend
+      - swarm_network
     deploy:
       mode: global
       restart_policy:
@@ -66,7 +66,7 @@ services:
       - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
     networks:
-      - backend
+      - swarm_network
     deploy:
       mode: global
       restart_policy:
@@ -84,7 +84,7 @@ services:
     environment:
       DATA_SOURCE_NAME: "postgresql://admin:${PG_PASSWORD}@data-postgresql_postgresql:5432/main?sslmode=disable"
     networks:
-      - backend
+      - swarm_network
     deploy:
       replicas: 1
       placement:
@@ -105,7 +105,7 @@ services:
     environment:
       REDIS_ADDR: "redis://data-redis_redis:6379"
     networks:
-      - backend
+      - swarm_network
     deploy:
       replicas: 1
       placement:
@@ -122,5 +122,5 @@ services:
           memory: 64M
 
 networks:
-  backend:
+  swarm_network:
     external: true

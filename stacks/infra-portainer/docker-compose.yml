@@ -7,7 +7,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - /var/lib/docker/volumes:/var/lib/docker/volumes
     networks:
-      - backend
+      - swarm_network
     deploy:
       mode: global
       restart_policy:
@@ -28,7 +28,7 @@ services:
     volumes:
       - /opt/data/portainer:/data
     networks:
-      - backend
+      - swarm_network
     deploy:
       replicas: 1
       placement:
@@ -51,5 +51,5 @@ services:
       start_period: 30s
 
 networks:
-  backend:
+  swarm_network:
     external: true

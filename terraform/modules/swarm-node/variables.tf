@@ -33,6 +33,11 @@ variable "private_ip" {
   type        = string
 }
 
+variable "firewall_id" {
+  description = "Hetzner firewall ID to attach"
+  type        = number
+}
+
 variable "ssh_private_key_path" {
   description = "Path to SSH private key for provisioners"
   type        = string

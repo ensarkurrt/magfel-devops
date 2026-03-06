@@ -15,7 +15,7 @@ services:
       - /opt/data/registry:/var/lib/registry
       - /opt/configs/registry:/auth:ro
     networks:
-      - backend
+      - swarm_network
     deploy:
       replicas: 1
       placement:
@@ -45,7 +45,7 @@ services:
       DELETE_IMAGES: "true"
       SINGLE_REGISTRY: "true"
     networks:
-      - backend
+      - swarm_network
     deploy:
       replicas: 1
       placement:
@@ -62,5 +62,5 @@ services:
           memory: 64M
 
 networks:
-  backend:
+  swarm_network:
     external: true

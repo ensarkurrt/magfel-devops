@@ -9,7 +9,7 @@ services:
       AUTH_SUPPORTED_SCOPES: "openid profile email"
       NETBIRD_TOKEN_SOURCE: "idToken"
     networks:
-      - backend
+      - swarm_network
     deploy:
       replicas: 1
       placement:
@@ -34,7 +34,7 @@ services:
     volumes:
       - /opt/data/netbird/management:/var/lib/netbird
     networks:
-      - backend
+      - swarm_network
     deploy:
       replicas: 1
       placement:
@@ -55,7 +55,7 @@ services:
     ports:
       - "10000:80"
     networks:
-      - backend
+      - swarm_network
     deploy:
       replicas: 1
       placement:
@@ -84,7 +84,7 @@ services:
       - "3478:3478/udp"
       - "3478:3478/tcp"
     networks:
-      - backend
+      - swarm_network
     deploy:
       replicas: 1
       placement:
@@ -101,5 +101,5 @@ services:
           memory: 128M
 
 networks:
-  backend:
+  swarm_network:
     external: true

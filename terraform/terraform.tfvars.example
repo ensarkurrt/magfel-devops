@@ -15,8 +15,6 @@ private_subnet = "10.0.0.0/24"
 ip_offset      = 10  # İlk node 10.0.0.10 alır
 
 # ─── Manager Nodes ───────────────────────────────────────────────────
-# İlk grubun ilk replica'sı Swarm leader olur.
-# HA için replicas = 3 (veya 5) yapın.
 managers = {
   infra = {
     server_type = "cx22"
@@ -24,7 +22,7 @@ managers = {
     replicas    = 1
     labels      = { "role" = "infra" }
   }
-  # HA örneği — farklı bölgede 2 manager daha:
+  # HA: farklı bölgede 2 manager daha
   # infra-nbg = {
   #   server_type = "cx22"
   #   location    = "nbg1"
@@ -34,8 +32,6 @@ managers = {
 }
 
 # ─── Worker Nodes ────────────────────────────────────────────────────
-# Yeni worker = yeni block + terraform apply
-# replicas ile aynı tipten birden fazla node oluşturulur
 workers = {
   data = {
     server_type = "cpx31"
@@ -55,24 +51,17 @@ workers = {
     replicas    = 1
     labels      = { "role" = "tools" }
   }
-  # ─── Örnek: 2 ML worker ─────────────────────────────
-  # ml = {
-  #   server_type = "ccx33"
-  #   location    = "fsn1"
-  #   replicas    = 2     # → swarm-wkr-ml-0, swarm-wkr-ml-1
-  #   labels      = { "role" = "ml" }
-  # }
-  #
-  # ─── Örnek: farklı bölgede edge node'lar ────────────
-  # edge = {
-  #   server_type = "cx22"
-  #   location    = "nbg1"
-  #   replicas    = 3     # → 3 edge worker Nürnberg'de
-  #   labels      = { "role" = "edge", "zone" = "nbg" }
-  # }
 }
 
 # ─── Stack Deployment ────────────────────────────────────────────────
 deploy_stacks = true
-# stacks listesini değiştirmek istersen variables.tf'deki default'u
-# override edebilirsin. Varsayılan: 17 stack sıralı deploy.
+
+# ─── Phase 2: Lockdown ──────────────────────────────────────────────
+# İlk terraform apply'da BOŞ bırak → her şey açık (setup modu)
+# NetBird UI'dan setup key aldıktan sonra:
+#   terraform apply -var='netbird_setup_key=nb-xxxxxxxxxxxx'
+# Bu komut:
+#   - Tüm node'lara NetBird kurar
+#   - UFW firewall'ı aktif eder (VPN subnet dahil)
+#   - Hetzner Firewall'ı kısıtlar (sadece SSH, HTTP/S, WireGuard)
+netbird_setup_key = ""

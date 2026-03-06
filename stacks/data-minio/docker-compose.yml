@@ -16,7 +16,7 @@ services:
     volumes:
       - /opt/data/minio:/data
     networks:
-      - backend
+      - swarm_network
     deploy:
       replicas: 1
       placement:
@@ -43,5 +43,5 @@ secrets:
     external: true
 
 networks:
-  backend:
+  swarm_network:
     external: true

@@ -58,3 +58,20 @@ output "total_nodes" {
     total    = length(local.all_node_keys)
   }
 }
+
+# ─── Firewall ────────────────────────────────────────────────────────
+output "firewall_id" {
+  description = "Hetzner Firewall ID"
+  value       = hcloud_firewall.swarm.id
+}
+
+output "lockdown_status" {
+  description = "Whether Phase 2 lockdown is active"
+  value       = local.lockdown_enabled ? "LOCKED (NetBird + UFW + Hetzner FW restricted)" : "OPEN (setup mode — run terraform apply -var='netbird_setup_key=...' to lock)"
+}
+
+# ─── CoreDNS ─────────────────────────────────────────────────────────
+output "coredns_hosts" {
+  description = "Generated CoreDNS hosts.internal content"
+  value       = local.coredns_hosts
+}
