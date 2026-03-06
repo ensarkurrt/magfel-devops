@@ -89,7 +89,7 @@ variable "managers" {
       server_type = "cx22"
       location    = "fsn1"
       replicas    = 1
-      labels      = { "role" = "infra" }
+      labels      = { "infra" = "true" }
     }
   }
 
@@ -117,19 +117,19 @@ variable "workers" {
       server_type = "cpx31"
       location    = "fsn1"
       replicas    = 1
-      labels      = { "role" = "data" }
+      labels      = { "data" = "true" }
     }
     apps = {
       server_type = "cx32"
       location    = "fsn1"
       replicas    = 1
-      labels      = { "role" = "apps" }
+      labels      = { "app" = "true" }
     }
     tools = {
       server_type = "cx32"
       location    = "fsn1"
       replicas    = 1
-      labels      = { "role" = "tools" }
+      labels      = { "tools" = "true" }
     }
   }
 }
@@ -166,4 +166,50 @@ variable "stacks" {
     { name = "tool-openstatus", source_dir = "../stacks/tool-openstatus" },
     { name = "tool-twenty", source_dir = "../stacks/tool-twenty" },
   ]
+}
+
+# ─── CI Runner (GitHub Actions self-hosted) ──────────────────────────
+variable "deploy_ci_runner" {
+  description = "CI Runner stack'ini deploy et (GitHub repo URL ve PAT gerektirir)"
+  type        = bool
+  default     = false
+}
+
+variable "ci_runner_repo_url" {
+  description = "GitHub repo URL for CI runner registration"
+  type        = string
+  default     = ""
+}
+
+variable "ci_runner_pat" {
+  description = "GitHub Personal Access Token for CI runner"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "ci_runner_replicas" {
+  description = "Number of CI runner instances"
+  type        = number
+  default     = 2
+}
+
+# ─── Offsite Backup ──────────────────────────────────────────────────
+variable "backup_offsite_enabled" {
+  description = "Hetzner Storage Box'a offsite backup sync aktif et"
+  type        = bool
+  default     = false
+}
+
+variable "backup_storage_box" {
+  description = "Hetzner Storage Box bağlantı bilgisi (user@host:path)"
+  type        = string
+  default     = ""
+}
+
+variable "backup_storage_box_password" {
+  description = "Storage Box SSH password or key path"
+  type        = string
+  default     = ""
+  sensitive   = true
 }
