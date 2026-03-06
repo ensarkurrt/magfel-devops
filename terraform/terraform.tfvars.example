@@ -1,0 +1,42 @@
+# Hetzner Cloud API Token
+hcloud_token = "your-hetzner-api-token-here"
+
+# Cluster settings
+cluster_name = "swarm"
+location     = "fsn1"
+domain       = "example.com"
+
+# SSH key paths
+ssh_public_key_path  = "~/.ssh/id_ed25519.pub"
+ssh_private_key_path = "~/.ssh/id_ed25519"
+
+# Manager node
+manager = {
+  server_type = "cx22"
+  private_ip  = "10.0.0.1"
+}
+
+# Worker nodes — yeni worker eklemek için buraya block ekle, `terraform apply` çalıştır
+workers = {
+  data = {
+    server_type = "cpx31"
+    private_ip  = "10.0.0.2"
+    labels      = { "role" = "data" }
+  }
+  apps = {
+    server_type = "cx32"
+    private_ip  = "10.0.0.3"
+    labels      = { "role" = "apps" }
+  }
+  tools = {
+    server_type = "cx32"
+    private_ip  = "10.0.0.4"
+    labels      = { "role" = "tools" }
+  }
+  # ─── Yeni worker örneği ────────────────────────────
+  # ml = {
+  #   server_type = "ccx33"      # dedicated vCPU
+  #   private_ip  = "10.0.0.5"
+  #   labels      = { "role" = "ml", "gpu" = "true" }
+  # }
+}
