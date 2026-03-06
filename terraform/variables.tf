@@ -10,12 +10,6 @@ variable "cluster_name" {
   default     = "swarm"
 }
 
-variable "location" {
-  description = "Hetzner datacenter location"
-  type        = string
-  default     = "fsn1"
-}
-
 variable "network_zone" {
   description = "Hetzner network zone"
   type        = string
@@ -26,6 +20,12 @@ variable "private_subnet" {
   description = "Private network CIDR"
   type        = string
   default     = "10.0.0.0/24"
+}
+
+variable "ip_offset" {
+  description = "Starting IP offset in the subnet (e.g. 10 → first node gets 10.0.0.10)"
+  type        = number
+  default     = 10
 }
 
 variable "ssh_public_key_path" {
@@ -40,60 +40,100 @@ variable "ssh_private_key_path" {
   default     = "~/.ssh/id_ed25519"
 }
 
-# ─── Node Definitions ────────────────────────────────────────────────
-# Manager node — tek node, Swarm manager
-variable "manager" {
-  description = "Manager node configuration"
-  type = object({
-    server_type = string
-    private_ip  = string
-  })
-  default = {
-    server_type = "cx22"
-    private_ip  = "10.0.0.1"
-  }
-}
-
-# Worker nodes — istediğin kadar ekle, `terraform apply` çalıştır
-variable "workers" {
-  description = "Worker nodes — add a new entry and run terraform apply"
-  type = map(object({
-    server_type = string
-    private_ip  = string
-    labels      = map(string)
-  }))
-  default = {
-    data = {
-      server_type = "cpx31"
-      private_ip  = "10.0.0.2"
-      labels      = { "role" = "data" }
-    }
-    apps = {
-      server_type = "cx32"
-      private_ip  = "10.0.0.3"
-      labels      = { "role" = "apps" }
-    }
-    tools = {
-      server_type = "cx32"
-      private_ip  = "10.0.0.4"
-      labels      = { "role" = "tools" }
-    }
-    # ──────────────────────────────────────────────────────
-    # Yeni worker eklemek için buraya bir block ekle:
-    #
-    # gpu = {
-    #   server_type = "cx42"
-    #   private_ip  = "10.0.0.5"
-    #   labels      = { "role" = "gpu" }
-    # }
-    #
-    # Sonra: terraform apply
-    # ──────────────────────────────────────────────────────
-  }
-}
-
 variable "domain" {
   description = "Base domain for services"
   type        = string
   default     = "example.com"
+}
+
+# ─── Node Tanımları ──────────────────────────────────────────────────
+#
+# replicas = N → aynı tipten N adet node oluşturur
+# IP'ler otomatik atanır, manuel IP vermeye gerek yok
+# location her grup için ayrı belirlenebilir (multi-region)
+#
+# Örnekler:
+#   replicas = 1  → swarm-mgr-infra-0
+#   replicas = 3  → swarm-mgr-infra-0, swarm-mgr-infra-1, swarm-mgr-infra-2
+#
+variable "managers" {
+  description = "Manager node groups — ilk grubun ilk node'u Swarm'ı başlatır"
+  type = map(object({
+    server_type = string
+    location    = string
+    replicas    = number
+    labels      = optional(map(string), {})
+  }))
+  default = {
+    infra = {
+      server_type = "cx22"
+      location    = "fsn1"
+      replicas    = 1
+      labels      = { "role" = "infra" }
+    }
+  }
+}
+
+variable "workers" {
+  description = "Worker node groups — entry ekle + terraform apply"
+  type = map(object({
+    server_type = string
+    location    = string
+    replicas    = number
+    labels      = optional(map(string), {})
+  }))
+  default = {
+    data = {
+      server_type = "cpx31"
+      location    = "fsn1"
+      replicas    = 1
+      labels      = { "role" = "data" }
+    }
+    apps = {
+      server_type = "cx32"
+      location    = "fsn1"
+      replicas    = 1
+      labels      = { "role" = "apps" }
+    }
+    tools = {
+      server_type = "cx32"
+      location    = "fsn1"
+      replicas    = 1
+      labels      = { "role" = "tools" }
+    }
+  }
+}
+
+# ─── Stack Deployment ─────────────────────────────────────────────────
+variable "deploy_stacks" {
+  description = "Stack'leri Terraform üzerinden deploy et"
+  type        = bool
+  default     = true
+}
+
+variable "stacks" {
+  description = "Deploy edilecek stack listesi (sıralı)"
+  type = list(object({
+    name       = string
+    source_dir = string
+  }))
+  default = [
+    { name = "infra-dns", source_dir = "../stacks/infra-dns" },
+    { name = "data-postgresql", source_dir = "../stacks/data-postgresql" },
+    { name = "data-redis", source_dir = "../stacks/data-redis" },
+    { name = "data-minio", source_dir = "../stacks/data-minio" },
+    { name = "infra-traefik", source_dir = "../stacks/infra-traefik" },
+    { name = "infra-portainer", source_dir = "../stacks/infra-portainer" },
+    { name = "infra-registry", source_dir = "../stacks/infra-registry" },
+    { name = "infra-netbird", source_dir = "../stacks/infra-netbird" },
+    { name = "log-loki", source_dir = "../stacks/log-loki" },
+    { name = "log-promtail", source_dir = "../stacks/log-promtail" },
+    { name = "mon-prometheus", source_dir = "../stacks/mon-prometheus" },
+    { name = "mon-grafana", source_dir = "../stacks/mon-grafana" },
+    { name = "mon-alertmanager", source_dir = "../stacks/mon-alertmanager" },
+    { name = "app-gowa", source_dir = "../stacks/app-gowa" },
+    { name = "tool-umami", source_dir = "../stacks/tool-umami" },
+    { name = "tool-openstatus", source_dir = "../stacks/tool-openstatus" },
+    { name = "tool-twenty", source_dir = "../stacks/tool-twenty" },
+  ]
 }

@@ -1,69 +1,78 @@
-.PHONY: init plan apply destroy add-worker status ssh-manager
+.PHONY: init plan apply destroy status ssh nodes stacks
 
 # ─── Temel Komutlar ──────────────────────────────────────────────────
 
-## İlk kurulum — provider'ları indir
-init:
+init:           ## Provider'ları indir
 	terraform init
 
-## Değişiklikleri önizle (dry-run)
-plan:
+plan:           ## Değişiklikleri önizle (dry-run)
 	terraform plan
 
-## Değişiklikleri uygula — sunucu oluştur, Swarm kur
-apply:
+apply:          ## Uygula — sunucu oluştur, Swarm kur, stack deploy
 	terraform apply
 
-## Her şeyi yık (DİKKAT!)
-destroy:
+destroy:        ## Her şeyi yık (DİKKAT!)
 	terraform destroy
 
-# ─── Yardımcı Komutlar ──────────────────────────────────────────────
+# ─── Cluster Bilgileri ───────────────────────────────────────────────
 
-## Cluster durumunu göster
-status:
-	@echo "=== Terraform Outputs ==="
-	@terraform output
+status:         ## Cluster durumu — node'lar, stack'ler, servisler
+	@echo "═══ Node Sayısı ═══"
+	@terraform output -json total_nodes | jq '.'
 	@echo ""
-	@echo "=== Swarm Nodes ==="
-	@ssh root@$$(terraform output -raw manager_ip) "docker node ls"
+	@echo "═══ IP Haritası ═══"
+	@terraform output -json ip_map | jq '.'
 	@echo ""
-	@echo "=== Running Stacks ==="
-	@ssh root@$$(terraform output -raw manager_ip) "docker stack ls"
+	@echo "═══ Swarm Nodes ═══"
+	@ssh -o StrictHostKeyChecking=no root@$$(terraform output -raw leader_public_ip) "docker node ls"
+	@echo ""
+	@echo "═══ Running Stacks ═══"
+	@ssh -o StrictHostKeyChecking=no root@$$(terraform output -raw leader_public_ip) "docker stack ls"
 
-## Manager'a SSH
-ssh-manager:
-	ssh root@$$(terraform output -raw manager_ip)
+nodes:          ## Tüm node IP'lerini göster
+	@echo "═══ Managers ═══"
+	@terraform output -json managers | jq -r 'to_entries[] | "\(.key)\t\(.value.public_ip)\t\(.value.private_ip)\t\(.value.location)"'
+	@echo ""
+	@echo "═══ Workers ═══"
+	@terraform output -json workers | jq -r 'to_entries[] | "\(.key)\t\(.value.public_ip)\t\(.value.private_ip)\t\(.value.location)"'
 
-## Stack deploy — kullanım: make deploy-stack STACK=infra-traefik
-deploy-stack:
-	@test -n "$(STACK)" || (echo "Usage: make deploy-stack STACK=<name>" && exit 1)
-	scp -r ../stacks/$(STACK) root@$$(terraform output -raw manager_ip):/opt/stacks/$(STACK)
-	ssh root@$$(terraform output -raw manager_ip) "docker stack deploy -c /opt/stacks/$(STACK)/docker-compose.yml $(STACK)"
+stacks:         ## Çalışan stack'leri listele
+	@ssh -o StrictHostKeyChecking=no root@$$(terraform output -raw leader_public_ip) "docker stack ls"
 
-## Tüm stack'leri deploy et (sıralı)
-deploy-all:
+# ─── SSH ─────────────────────────────────────────────────────────────
+
+ssh:            ## Leader'a SSH bağlan
+	ssh root@$$(terraform output -raw leader_public_ip)
+
+# ─── Stack İşlemleri ─────────────────────────────────────────────────
+
+deploy-stack:   ## Tek stack deploy — make deploy-stack STACK=infra-traefik
+	@test -n "$(STACK)" || (echo "Kullanım: make deploy-stack STACK=<name>" && exit 1)
+	scp -o StrictHostKeyChecking=no -r ../stacks/$(STACK) root@$$(terraform output -raw leader_public_ip):/opt/stacks/$(STACK)
+	ssh -o StrictHostKeyChecking=no root@$$(terraform output -raw leader_public_ip) \
+		"docker stack deploy -c /opt/stacks/$(STACK)/docker-compose.yml $(STACK) --with-registry-auth"
+
+redeploy-all:   ## Tüm stack'leri yeniden deploy et
 	@for stack in infra-dns data-postgresql data-redis data-minio infra-traefik infra-portainer infra-registry infra-netbird log-loki log-promtail mon-prometheus mon-grafana mon-alertmanager app-gowa tool-umami tool-openstatus tool-twenty; do \
 		echo "Deploying $$stack..."; \
-		scp -r ../stacks/$$stack root@$$(terraform output -raw manager_ip):/opt/stacks/$$stack 2>/dev/null; \
-		ssh root@$$(terraform output -raw manager_ip) "docker stack deploy -c /opt/stacks/$$stack/docker-compose.yml $$stack" 2>/dev/null; \
-		echo "  ✓ $$stack deployed"; \
+		scp -o StrictHostKeyChecking=no -r ../stacks/$$stack root@$$(terraform output -raw leader_public_ip):/opt/stacks/$$stack 2>/dev/null; \
+		ssh -o StrictHostKeyChecking=no root@$$(terraform output -raw leader_public_ip) \
+			"docker stack deploy -c /opt/stacks/$$stack/docker-compose.yml $$stack --with-registry-auth" 2>/dev/null; \
+		echo "  done: $$stack"; \
 	done
 
-# ─── Yeni Worker Ekleme Rehberi ──────────────────────────────────────
-help-add-worker:
+# ─── Yardım ─────────────────────────────────────────────────────────
+
+help:           ## Bu yardım mesajını göster
 	@echo ""
-	@echo "Yeni worker eklemek için:"
+	@echo "Kullanılabilir komutlar:"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-16s %s\n", $$1, $$2}'
 	@echo ""
-	@echo "  1. terraform.tfvars dosyasındaki 'workers' map'ine yeni block ekle:"
+	@echo "Yeni worker eklemek:"
+	@echo "  1. terraform.tfvars → workers map'ine yeni block ekle"
+	@echo "  2. make apply"
 	@echo ""
-	@echo '     newnode = {'
-	@echo '       server_type = "cx32"'
-	@echo '       private_ip  = "10.0.0.5"'
-	@echo '       labels      = { "role" = "custom" }'
-	@echo '     }'
-	@echo ""
-	@echo "  2. terraform apply"
-	@echo ""
-	@echo "Bu kadar. Sunucu oluşturulur, Docker kurulur, Swarm'a katılır, label'lar atanır."
+	@echo "Worker replica artırmak:"
+	@echo "  1. terraform.tfvars → ilgili worker'ın replicas değerini artır"
+	@echo "  2. make apply"
 	@echo ""
